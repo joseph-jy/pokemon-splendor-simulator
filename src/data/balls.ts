@@ -14,6 +14,16 @@ export const BALLS_BY_ID: Readonly<Record<BallColor, BallDef>> = Object.fromEntr
   BALLS.map((b) => [b.id, b]),
 ) as Record<BallColor, BallDef>;
 
+/** UI 표시용 컬러명. 마스터볼은 name 그대로 사용. */
+export const COLOR_DISPLAY: Readonly<Record<BallColor, string>> = {
+  red: "빨강",
+  blue: "파랑",
+  black: "검정",
+  pink: "분홍",
+  yellow: "노랑",
+  gold: "마스터볼",
+};
+
 /** 게임 시작 시 공급 가능한 볼 수(GAME.md 볼 수). */
 export const INITIAL_BALL_SUPPLY: Readonly<Record<BallColor, number>> = {
   red: 7, blue: 7, black: 7, pink: 7, yellow: 7, gold: 5,
