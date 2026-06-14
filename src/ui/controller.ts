@@ -12,7 +12,11 @@ import type { WinRates } from "@/simulator/montecarlo";
 import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
-import { el, ballIcon, makeCardEl, makeMiniCard, bonusBadge, showTooltip, hideTooltip, aiLogEl } from "./view";
+import {
+  el, ballIcon, ballChip, makeCardEl, makeMiniCard, bonusBadge,
+  showTooltip, hideTooltip, aiLogEl,
+  showEvolutionToast, showCaptureToast,
+} from "./view";
 
 const HUMAN_INDEX = 0;
 const MC_N = 200;
@@ -99,7 +103,11 @@ export class Controller {
     const aiIdx = this.state.currentPlayer;
     const desc = this.describeAction(aiIdx, pick.action);
     applyMainAction(this.state, pick.action);
-    if (pick.evolution) applyEvolution(this.state, pick.evolution);
+    if (pick.evolution) {
+      applyEvolution(this.state, pick.evolution);
+      const targetCard = cardOf(pick.evolution.targetId);
+      showEvolutionToast(targetCard.name);
+    }
     this.pushAiLog(desc);
     this.advance();
   }
@@ -140,6 +148,15 @@ export class Controller {
 
   private humanPlay(action: MainAction): void {
     if (this.phase !== "human-action") return;
+
+    // Show toast for special actions before applying
+    if (action.type === "acquire") {
+      const card = cardOf(action.cardId);
+      if (isNoble(card.tier)) {
+        showCaptureToast(card.name);
+      }
+    }
+
     applyMainAction(this.state, action);
     this.ballPickActive = false;
     this.ballPickColors = [];
@@ -155,7 +172,11 @@ export class Controller {
 
   private humanEvolve(evo: Evolution | null): void {
     if (this.phase !== "human-evolve") return;
-    if (evo) applyEvolution(this.state, evo);
+    if (evo) {
+      applyEvolution(this.state, evo);
+      const targetCard = cardOf(evo.targetId);
+      showEvolutionToast(targetCard.name);
+    }
     this.advance();
   }
 
@@ -203,7 +224,6 @@ export class Controller {
   // ── Card click ──
 
   private onCardClick(id: string): void {
-    // Always try acquire
     const acts = legalMainActions(this.state).filter((a) => a.type === "acquire" && a.cardId === id);
     const act = acts[0];
     if (act) { this.humanPlay(act); return; }
@@ -250,39 +270,49 @@ export class Controller {
     return "보관 불가";
   }
 
-  // ── Render ──
+  // ═══════════════════════════════════════════════════════════════════
+  //   RENDER — Left/Right Dashboard Layout
+  // ═══════════════════════════════════════════════════════════════════
 
   render(): void {
     this.root.replaceChildren(
-      this.renderHeader(),
-      this.aiPanelEl(2, "top"),
-      this.aiPanelEl(1, "left"),
-      this.renderBoard(),
-      this.aiPanelEl(3, "right"),
-      this.mePanelEl(),
+      this.renderGameLayout(),
     );
-    // End game overlay on top
     if (this.state.ended) {
       this.root.append(this.renderEndOverlay());
     }
   }
 
-  // ── Header ──
+  private renderGameLayout(): HTMLElement {
+    return el("div", { class: "game-layout" }, [
+      this.renderLeftPanel(),
+      this.renderRightPanel(),
+    ]);
+  }
+
+  // ── Left panel: header + card field ──
+
+  private renderLeftPanel(): HTMLElement {
+    const left = el("div", { class: "game-left" });
+    left.append(this.renderHeader());
+    left.append(this.renderBoard());
+    return left;
+  }
 
   private renderHeader(): HTMLElement {
-    const probs = el("div", { class: "probs-inline" });
+    const probs = el("div", { class: "prob-bars" });
     for (let i = 0; i < this.state.numPlayers; i++) {
       const p = this.state.players[i]!;
       const pct = this.winRatesStale ? null : this.winRates[i];
-      const cls = ["prob-bar"];
+      const cls = ["prob-item"];
       if (i === HUMAN_INDEX) cls.push("me");
       if (i === this.state.currentPlayer && !this.state.ended) cls.push("current");
       probs.append(el("div", { class: cls.join(" "), title: `${this.playerName(i)} ${playerPoints(p)}점` }, [
-        el("span", { class: "prob-name" }, [this.playerName(i)]),
-        el("div", { class: "bar" }, [
-          el("div", { style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
+        el("span", { class: "text-xs opacity-70" }, [this.playerName(i)]),
+        el("div", { class: "prob-bar-track" }, [
+          el("div", { class: "prob-bar-fill", style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
         ]),
-        el("span", { class: "prob-pct" }, [pct != null ? `${Math.round(pct * 100)}%` : "…"]),
+        el("span", { class: "text-xs font-bold" }, [pct != null ? `${Math.round(pct * 100)}%` : "…"]),
       ]));
     }
 
@@ -293,85 +323,46 @@ export class Controller {
       logEl.append(el("div", {}, [entry]));
     }
 
-    const newGameBtn = el("button", { class: "btn-sm", onclick: () => this.newGame() }, ["새 게임"]);
+    const newGameBtn = el("button", {
+      class: "btn btn-sm btn-warning btn-outline",
+      onclick: () => this.newGame(),
+    }, [
+      el("i", { class: "fa-solid fa-rotate-right mr-1" }),
+      "새 게임",
+    ]);
 
-    return el("div", { class: "area-header" }, [
-      el("span", { class: "header-title" }, ["포켓몬 스플렌더"]),
-      probs,
-      el("div", { class: "header-right" }, [
-        el("span", { class: "turn-indicator" }, [turnText]),
-        logEl,
-        newGameBtn,
+    return el("div", { class: "game-header" }, [
+      el("span", { class: "title" }, [
+        el("i", { class: "fa-solid fa-gamepad mr-1" }),
+        "포켓몬 스플렌더",
       ]),
+      probs,
+      el("span", { class: "badge badge-ghost" }, [
+        el("i", { class: "fa-solid fa-circle-play mr-1" }),
+        turnText,
+      ]),
+      logEl,
+      newGameBtn,
     ]);
   }
 
-  // ── AI panels ──
-
-  private aiPanelEl(index: number, position: "top" | "left" | "right"): HTMLElement {
-    const p = this.state.players[index]!;
-    const areaCls = position === "top" ? "area-top" : position === "left" ? "area-left" : "area-right";
-    const cls = ["ai-panel", `ai-panel-${position}`, areaCls];
-    if (index === this.state.currentPlayer && !this.state.ended) cls.push("current");
-
-    const nameRow = el("div", { class: "ai-name" }, [
-      el("span", { class: "pname" }, [`AI ${index}`]),
-      el("span", { class: "ppt" }, [`${playerPoints(p)}점`]),
-      el("span", { class: "evo-count" }, [`진화 ${p.evolutions}`]),
-    ]);
-
-    // Balls
-    const ballsRow = el("div", { class: "ai-balls" });
-    for (const c of COLORS) {
-      if (p.balls[c] > 0) {
-        ballsRow.append(el("span", { class: "ball-chip", title: COLOR_DISPLAY[c] }, [ballIcon(c, 14), String(p.balls[c])]));
-      }
-    }
-    if (p.balls.gold > 0) {
-      ballsRow.append(el("span", { class: "ball-chip", title: COLOR_DISPLAY.gold }, [ballIcon("gold", 14), String(p.balls.gold)]));
-    }
-
-    // Bonuses
-    const bonusRow = el("div", { class: "ai-bonus" });
-    for (const c of COLORS) {
-      if (p.bonus[c] > 0) bonusRow.append(bonusBadge(c, p.bonus[c]));
-    }
-
-    // Scored cards (mini thumbnails)
-    const scoredRow = el("div", { class: "ai-scored" });
-    for (const id of p.scored) {
-      const card = cardOf(id);
-      const mc = makeMiniCard(card, { size: 36 });
-      mc.addEventListener("mouseenter", () => showTooltip(mc, card));
-      mc.addEventListener("mouseleave", () => hideTooltip());
-      scoredRow.append(mc);
-    }
-
-    return el("div", { class: cls.join(" ") }, [
-      nameRow,
-      ballsRow,
-      bonusRow,
-      scoredRow,
-    ]);
-  }
-
-  // ── Board ──
+  // ── Board (card field) ──
 
   private renderBoard(): HTMLElement {
-    const board = el("div", { class: "area-board" });
+    const board = el("div", { class: "flex flex-col gap-2 flex-1" });
 
-    // Supply bar at top of board
+    // Supply bar
     board.append(this.renderSupplyBar());
 
-    // Card rows
+    // Tier rows
     const rows: [string, Tier][] = [
       ["1단계", 1], ["2단계", 2], ["3단계", 3],
     ];
     for (const [label, tier] of rows) {
-      const rowWrap = el("div", { class: "board-row" });
+      const rowWrap = el("div", { class: "tier-row" });
       rowWrap.append(el("span", { class: "tier-label" }, [label]));
 
-      const cards = el("div", { class: "cards" });
+      const cards = el("div", { class: "tier-cards" });
       for (const id of this.state.board[tier]) cards.append(this.boardCardEl(id));
       rowWrap.append(cards);
 
@@ -381,20 +372,22 @@ export class Controller {
           (a): a is Extract<MainAction, { type: "reserveBlind" }> => a.type === "reserveBlind" && a.tier === tier,
         );
         if (blinds.length > 0) {
-          const btn = el("button", {
-            class: "btn-blind-reserve",
+          rowWrap.append(el("button", {
+            class: "blind-reserve-btn",
             onclick: () => this.humanPlay(blinds[0]!),
-          }, ["더미 보관"]);
-          rowWrap.append(btn);
+          }, [
+            el("i", { class: "fa-solid fa-eye-slash mr-1" }),
+            "더미",
+          ]));
         }
       }
       board.append(rowWrap);
     }
 
     // Noble row
-    const nobleRow = el("div", { class: "board-row" });
-    nobleRow.append(el("span", { class: "tier-label" }, ["희귀/전설"]));
-    const nobleCards = el("div", { class: "cards" });
+    const nobleRow = el("div", { class: "tier-row" });
+    nobleRow.append(el("span", { class: "tier-label" }, ["전설"]));
+    const nobleCards = el("div", { class: "tier-cards" });
     for (const id of this.state.board.rare) nobleCards.append(this.boardCardEl(id));
     for (const id of this.state.board.legendary) nobleCards.append(this.boardCardEl(id));
     nobleRow.append(nobleCards);
@@ -406,19 +399,18 @@ export class Controller {
   private renderSupplyBar(): HTMLElement {
     const wrap = el("div", { class: "supply-bar" });
     const order: Color[] = ["red", "blue", "black", "pink", "yellow"];
-
     const myTurn = this.isHumanTurn() && this.phase === "human-action";
 
     for (const c of order) {
       const supply = this.state.supply[c];
       const picked = this.ballPickColors.includes(c);
-      const cls = ["ball-supply"];
+      const cls = ["supply-item"];
       if (picked) cls.push("picked");
       if (myTurn && supply > 0) cls.push("pickable");
 
       const ballEl = el("div", { class: cls.join(" ") }, [
         ballIcon(c, 22),
-        el("span", { class: "cnt" }, [String(supply)]),
+        el("span", { class: "font-bold" }, [String(supply)]),
       ]);
 
       if (myTurn && supply > 0) {
@@ -431,39 +423,35 @@ export class Controller {
       wrap.append(ballEl);
     }
 
-    // Gold (not pickable)
+    // Gold (not pickable via take3)
     const goldSupply = this.state.supply.gold;
-    wrap.append(el("div", { class: "ball-supply" }, [
+    const goldEl = el("div", { class: "supply-item" }, [
       ballIcon("gold", 22),
-      el("span", { class: "cnt" }, [String(goldSupply)]),
-    ]));
+      el("span", { class: "font-bold" }, [String(goldSupply)]),
+    ]);
+    wrap.append(goldEl);
 
-    // Ball pick controls
+    // Ball pick flow controls
     if (this.ballPickActive) {
-      const controls = el("div", { class: "ball-pick-controls" });
-
-      // Selected colors display
-      const sel = el("span", { class: "pick-label" }, [
-        "선택: ",
-        ...this.ballPickColors.map((c) => COLOR_DISPLAY[c]).join(", "),
-      ]);
-      controls.append(sel);
-
-      // Confirm button
+      const flow = el("div", { class: "ball-pick-flow" });
+      flow.append(el("span", { class: "pick-label" }, [
+        el("i", { class: "fa-solid fa-hand-pointer mr-1" }),
+        `선택: ${this.ballPickColors.map((c) => COLOR_DISPLAY[c]).join(", ") || "없음"}`,
+      ]));
       const confirmBtn = el("button", {
-        class: "btn-sm btn-confirm",
+        class: "btn btn-xs btn-success",
         onclick: () => this.confirmBallPick(),
-      }, ["확인"]);
+      }, [
+        el("i", { class: "fa-solid fa-check mr-1" }),
+        "가져오기",
+      ]);
       if (this.ballPickColors.length === 0) confirmBtn.setAttribute("disabled", "");
-      controls.append(confirmBtn);
-
-      // Cancel button
-      controls.append(el("button", {
-        class: "btn-sm btn-cancel",
+      flow.append(confirmBtn);
+      flow.append(el("button", {
+        class: "btn btn-xs btn-ghost",
         onclick: () => this.cancelBallPick(),
       }, ["취소"]));
-
-      wrap.append(controls);
+      wrap.append(flow);
     }
 
     // Take2 buttons
@@ -471,26 +459,27 @@ export class Controller {
       const legal = legalMainActions(this.state);
       const take2s = legal.filter((a): a is Extract<MainAction, { type: "take2" }> => a.type === "take2");
       if (take2s.length > 0) {
-        const t2wrap = el("div", { class: "take2-buttons" });
         for (const a of take2s) {
-          t2wrap.append(el("button", {
-            class: "btn-sm btn-take2",
+          wrap.append(el("button", {
+            class: "take2-btn",
             onclick: () => this.humanPlay(a),
-          }, [`${COLOR_DISPLAY[a.color]} 2개`]));
+          }, [
+            ballIcon(a.color, 14),
+            `${COLOR_DISPLAY[a.color]} 2개`,
+          ]));
         }
-        wrap.append(t2wrap);
       }
-    }
 
-    // Start ball pick hint
-    if (myTurn && !this.ballPickActive) {
-      const legal = legalMainActions(this.state);
+      // Start ball pick hint
       const hasTake3 = legal.some((a) => a.type === "take3");
       if (hasTake3) {
         wrap.append(el("span", {
-          class: "pick-hint",
+          class: "text-xs text-warning cursor-pointer opacity-70 hover:opacity-100",
           onclick: () => this.startBallPick(),
-        }, ["볼 선택 →"]));
+        }, [
+          el("i", { class: "fa-solid fa-hand-pointer mr-1" }),
+          "볼 선택 →",
+        ]));
       }
     }
 
@@ -517,11 +506,9 @@ export class Controller {
       onclick: clickable ? () => this.onCardClick(id) : undefined,
     });
 
-    // Attach tooltip
     node.addEventListener("mouseenter", () => showTooltip(node, card));
     node.addEventListener("mouseleave", () => hideTooltip());
 
-    // Wire reserve button
     if (showReserveBtn) {
       const btn = node.querySelector(".reserve-btn");
       if (btn) {
@@ -535,56 +522,109 @@ export class Controller {
     return node;
   }
 
-  // ── Bottom panel (Me) ──
+  // ── Right panel: player status + token bank ──
 
-  private mePanelEl(): HTMLElement {
+  private renderRightPanel(): HTMLElement {
+    const right = el("div", { class: "game-right" });
+
+    // Current player info (Me)
+    right.append(this.renderMePanel());
+
+    // AI panels
+    right.append(this.renderAiPanel(1));
+    right.append(this.renderAiPanel(2));
+    right.append(this.renderAiPanel(3));
+
+    // Action / message area
+    right.append(this.renderActionPanel());
+
+    return right;
+  }
+
+  private renderMePanel(): HTMLElement {
     const p = this.state.players[HUMAN_INDEX]!;
-    const cls = ["area-bottom"];
-    if (this.state.currentPlayer === HUMAN_INDEX && !this.state.ended) cls.push("current");
+    const cls = ["player-panel"];
+    if (this.state.currentPlayer === HUMAN_INDEX && !this.state.ended) cls.push("current-turn");
 
     const panel = el("div", { class: cls.join(" ") });
 
-    // Section 1: Balls + Bonuses
-    const ballsSection = el("div", { class: "me-section me-balls" });
-    ballsSection.append(el("div", { class: "me-section-title" }, ["볼·보너스"]));
+    // Name + points
+    panel.append(el("div", { class: "flex items-center justify-between" }, [
+      el("div", { class: "flex items-center gap-2" }, [
+        el("div", { class: "avatar placeholder" }, [
+          el("div", { class: "bg-warning text-warning-content w-8 rounded-full" }, [
+            el("i", { class: "fa-solid fa-user text-sm" }),
+          ]),
+        ]),
+        el("span", { class: "panel-name" }, ["나"]),
+      ]),
+      el("div", { class: "flex items-center gap-2" }, [
+        el("span", { class: "panel-pts text-lg" }, [`${playerPoints(p)}점`]),
+        el("span", { class: "badge badge-sm badge-ghost" }, [`진화 ${p.evolutions}`]),
+      ]),
+    ]));
 
-    const ballsRow = el("div", { class: "me-ball-row" });
+    // Balls
+    const ballsSection = el("div", { class: "panel-section" });
+    ballsSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
+      el("i", { class: "fa-solid fa-coins mr-1" }),
+      "볼",
+    ]));
+    const ballsRow = el("div", { class: "flex flex-wrap gap-1" });
     for (const c of COLORS) {
-      if (p.balls[c] > 0) {
-        ballsRow.append(el("span", { class: "ball-chip", title: COLOR_DISPLAY[c] }, [ballIcon(c, 18), String(p.balls[c])]));
-      }
+      if (p.balls[c] > 0) ballsRow.append(ballChip(c, p.balls[c]));
     }
-    if (p.balls.gold > 0) {
-      ballsRow.append(el("span", { class: "ball-chip", title: COLOR_DISPLAY.gold }, [ballIcon("gold", 18), String(p.balls.gold)]));
-    }
+    if (p.balls.gold > 0) ballsRow.append(ballChip("gold", p.balls.gold));
+    if (handBallCount(p) === 0) ballsRow.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
     ballsSection.append(ballsRow);
+    panel.append(ballsSection);
 
-    const bonusRow = el("div", { class: "me-bonus-row" });
+    // Bonuses
+    const bonusSection = el("div", { class: "panel-section" });
+    bonusSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
+      el("i", { class: "fa-solid fa-shield-halved mr-1" }),
+      "보너스",
+    ]));
+    const bonusRow = el("div", { class: "flex flex-wrap gap-1" });
     for (const c of COLORS) {
       if (p.bonus[c] > 0) bonusRow.append(bonusBadge(c, p.bonus[c]));
     }
-    ballsSection.append(bonusRow);
-    ballsSection.append(el("div", { class: "me-stats" }, [`보유볼 ${handBallCount(p)} · 진화 ${p.evolutions}`]));
-    panel.append(ballsSection);
+    const hasBonus = COLORS.some((c) => p.bonus[c] > 0);
+    if (!hasBonus) bonusRow.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
+    bonusSection.append(bonusRow);
+    panel.append(bonusSection);
 
-    // Section 2: Scored cards
-    const scoredSection = el("div", { class: "me-section me-scored" });
-    scoredSection.append(el("div", { class: "me-section-title" }, [`획득 (${p.scored.length})`]));
-    const scoredScroll = el("div", { class: "me-card-scroll" });
-    for (const id of p.scored) {
+    // Scored cards
+    const scoredSection = el("div", { class: "panel-section" });
+    scoredSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
+      el("i", { class: "fa-solid fa-trophy mr-1" }),
+      `획득 (${p.scored.length})`,
+    ]));
+    const scoredScroll = el("div", { class: "card-scroll" });
+    const sortedScored = [...p.scored].sort((a, b) => {
+      const ca = cardOf(a), cb = cardOf(b);
+      const ia = COLORS.findIndex((c) => (ca.bonus[c] ?? 0) > 0);
+      const ib = COLORS.findIndex((c) => (cb.bonus[c] ?? 0) > 0);
+      return ia - ib;
+    });
+    for (const id of sortedScored) {
       const card = cardOf(id);
       const mc = makeMiniCard(card, { size: 48, label: true });
       mc.addEventListener("mouseenter", () => showTooltip(mc, card));
       mc.addEventListener("mouseleave", () => hideTooltip());
       scoredScroll.append(mc);
     }
+    if (p.scored.length === 0) scoredScroll.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
     scoredSection.append(scoredScroll);
     panel.append(scoredSection);
 
-    // Section 3: Reserved cards
-    const reservedSection = el("div", { class: "me-section me-reserved" });
-    reservedSection.append(el("div", { class: "me-section-title" }, [`보관 (${p.reserved.length})`]));
-    const reservedScroll = el("div", { class: "me-card-scroll" });
+    // Reserved cards
+    const reservedSection = el("div", { class: "panel-section" });
+    reservedSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
+      el("i", { class: "fa-solid fa-bookmark mr-1" }),
+      `보관 (${p.reserved.length}/${MAX_RESERVED})`,
+    ]));
+    const reservedScroll = el("div", { class: "card-scroll" });
     for (const id of p.reserved) {
       const card = cardOf(id);
       const affordable = canAfford(p, card);
@@ -599,45 +639,118 @@ export class Controller {
       mc.addEventListener("mouseleave", () => hideTooltip());
       reservedScroll.append(mc);
     }
+    if (p.reserved.length === 0) reservedScroll.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
     reservedSection.append(reservedScroll);
     panel.append(reservedSection);
 
-    // Section 4: Actions / Messages
-    const actionSection = el("div", { class: "me-section me-actions" });
-    actionSection.append(el("div", { class: "me-section-title" }, ["행동"]));
+    return panel;
+  }
 
-    // Show message
+  private renderAiPanel(index: number): HTMLElement {
+    const p = this.state.players[index]!;
+    const cls = ["ai-panel"];
+    if (index === this.state.currentPlayer && !this.state.ended) cls.push("current-turn");
+
+    const panel = el("div", { class: cls.join(" ") });
+
+    // Name + points
+    panel.append(el("div", { class: "flex items-center justify-between" }, [
+      el("div", { class: "flex items-center gap-2" }, [
+        el("div", { class: "avatar placeholder" }, [
+          el("div", { class: "bg-neutral text-neutral-content w-6 rounded-full" }, [
+            el("i", { class: "fa-solid fa-robot text-xs" }),
+          ]),
+        ]),
+        el("span", { class: "ai-name" }, [`AI ${index}`]),
+      ]),
+      el("div", { class: "flex items-center gap-2" }, [
+        el("span", { class: "ai-pts" }, [`${playerPoints(p)}점`]),
+        el("span", { class: "badge badge-xs badge-ghost" }, [`진화 ${p.evolutions}`]),
+      ]),
+    ]));
+
+    // Balls + Bonuses compact
+    const row = el("div", { class: "ai-row" });
+    for (const c of COLORS) {
+      if (p.balls[c] > 0) row.append(ballChip(c, p.balls[c]));
+    }
+    if (p.balls.gold > 0) row.append(ballChip("gold", p.balls.gold));
+    for (const c of COLORS) {
+      if (p.bonus[c] > 0) row.append(bonusBadge(c, p.bonus[c]));
+    }
+    panel.append(row);
+
+    // Scored cards (mini), sorted by bonus color
+    if (p.scored.length > 0) {
+      const scoredRow = el("div", { class: "ai-row" });
+      const sortedScored = [...p.scored].sort((a, b) => {
+        const ca = cardOf(a), cb = cardOf(b);
+        const ia = COLORS.findIndex((col) => (ca.bonus[col] ?? 0) > 0);
+        const ib = COLORS.findIndex((col) => (cb.bonus[col] ?? 0) > 0);
+        return ia - ib;
+      });
+      for (const id of sortedScored) {
+        const card = cardOf(id);
+        const mc = makeMiniCard(card, { size: 36 });
+        mc.addEventListener("mouseenter", () => showTooltip(mc, card));
+        mc.addEventListener("mouseleave", () => hideTooltip());
+        scoredRow.append(mc);
+      }
+      panel.append(scoredRow);
+    }
+
+    return panel;
+  }
+
+  private renderActionPanel(): HTMLElement {
+    const panel = el("div", { class: "player-panel" });
+
+    // Message
     if (this.msg.text) {
-      actionSection.append(el("div", { class: `msg ${this.msg.kind}` }, [this.msg.text]));
+      const alertCls = this.msg.kind === "ok" ? "alert-success" :
+        this.msg.kind === "bad" ? "alert-error" : "alert-info";
+      panel.append(el("div", { class: `alert ${alertCls} py-2 px-3 text-sm` }, [
+        el("span", {}, [this.msg.text]),
+      ]));
     }
 
     // Evolve phase
     if (this.phase === "human-evolve") {
       const evos = legalEvolutions(this.state);
       if (evos.length > 0) {
-        const evoBtns = el("div", { class: "evo-buttons" });
+        const evoWrap = el("div", { class: "flex flex-col gap-1" });
+        evoWrap.append(el("div", { class: "text-xs opacity-60" }, [
+          el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
+          "진화 가능!",
+        ]));
         for (const evo of evos) {
           const s = cardOf(evo.sourceId);
           const t = cardOf(evo.targetId);
-          evoBtns.append(el("button", {
-            class: "btn-sm btn-evo",
+          evoWrap.append(el("button", {
+            class: "btn btn-sm btn-warning",
             onclick: () => this.humanEvolve(evo),
-          }, [`${s.name}→${t.name} (+${t.points - s.points}점)`]));
+          }, [
+            el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
+            `${s.name} → ${t.name} (+${t.points - s.points}점)`,
+          ]));
         }
-        evoBtns.append(el("button", {
-          class: "btn-sm",
+        evoWrap.append(el("button", {
+          class: "btn btn-sm btn-ghost",
           onclick: () => this.humanEvolve(null),
         }, ["건너뛰기"]));
-        actionSection.append(evoBtns);
+        panel.append(evoWrap);
       }
     }
 
     // AI turn indicator
     if (!this.isHumanTurn() && this.phase === "ai") {
-      actionSection.append(el("div", { class: "msg info" }, ["AI 플레이어가 생각 중입니다…"]));
+      panel.append(el("div", { class: "alert alert-info py-2 px-3 text-sm" }, [
+        el("span", {}, [
+          el("i", { class: "fa-solid fa-spinner fa-spin mr-1" }),
+          "AI 플레이어가 생각 중입니다…",
+        ]),
+      ]));
     }
-
-    panel.append(actionSection);
 
     return panel;
   }
@@ -649,9 +762,10 @@ export class Controller {
     const winner = winnerId(this.state);
     const rows = ranked.map((pid, idx) => {
       const p = this.state.players[pid]!;
-      const cls = idx === 0 ? "rank1" : "";
+      const cls = idx === 0 ? "text-warning font-bold" : "";
+      const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "4위";
       return el("tr", {}, [
-        el("td", { class: cls }, [idx === 0 ? "🥇" : `${idx + 1}위`]),
+        el("td", { class: cls }, [medal]),
         el("td", { class: cls }, [this.playerName(pid)]),
         el("td", { class: cls }, [`${playerPoints(p)}점`]),
         el("td", { class: cls }, [`${p.evolutions}`]),
@@ -659,20 +773,29 @@ export class Controller {
       ]);
     });
     return el("div", { class: "endgame-overlay" }, [
-      el("div", { class: "endgame-card" }, [
-        el("h2", {}, [`${this.playerName(winner)} 승리!`]),
-        el("table", {}, [
-          el("thead", {}, [el("tr", {}, [
-            el("th", {}, ["순위"]), el("th", {}, ["플레이어"]), el("th", {}, ["점수"]),
-            el("th", {}, ["진화"]), el("th", {}, ["카드"]),
-          ])]),
-          el("tbody", {}, rows),
+      el("div", { class: "card bg-base-200 shadow-2xl p-6 max-w-md" }, [
+        el("h2", { class: "card-title text-2xl justify-center text-warning mb-4" }, [
+          el("i", { class: "fa-solid fa-trophy mr-2" }),
+          `${this.playerName(winner)} 승리!`,
         ]),
-        el("button", {
-          class: "btn-sm",
-          onclick: () => this.newGame(),
-          style: "margin-top:12px",
-        }, ["새 게임"]),
+        el("div", { class: "overflow-x-auto" }, [
+          el("table", { class: "table table-sm" }, [
+            el("thead", {}, [el("tr", {}, [
+              el("th", {}, ["순위"]), el("th", {}, ["플레이어"]), el("th", {}, ["점수"]),
+              el("th", {}, ["진화"]), el("th", {}, ["카드"]),
+            ])]),
+            el("tbody", {}, rows),
+          ]),
+        ]),
+        el("div", { class: "card-actions justify-center mt-4" }, [
+          el("button", {
+            class: "btn btn-warning",
+            onclick: () => this.newGame(),
+          }, [
+            el("i", { class: "fa-solid fa-rotate-right mr-1" }),
+            "새 게임",
+          ]),
+        ]),
       ]),
     ]);
   }
@@ -687,33 +810,26 @@ export class Controller {
   }
 
   private renderProbs(): void {
-    const existing = this.root.querySelector(".probs-inline");
-    if (!existing) return;
-    // Re-render the entire header probs section
-    const header = this.root.querySelector(".area-header");
-    if (header) {
-      const probsInline = header.querySelector(".probs-inline");
-      if (probsInline) {
-        const neu = this.buildProbsInline();
-        probsInline.replaceWith(neu);
-      }
-    }
+    const probsEl = this.root.querySelector(".prob-bars");
+    if (!probsEl) return;
+    const neu = this.buildProbsBars();
+    probsEl.replaceWith(neu);
   }
 
-  private buildProbsInline(): HTMLElement {
-    const probs = el("div", { class: "probs-inline" });
+  private buildProbsBars(): HTMLElement {
+    const probs = el("div", { class: "prob-bars" });
     for (let i = 0; i < this.state.numPlayers; i++) {
       const p = this.state.players[i]!;
       const pct = this.winRatesStale ? null : this.winRates[i];
-      const cls = ["prob-bar"];
+      const cls = ["prob-item"];
       if (i === HUMAN_INDEX) cls.push("me");
       if (i === this.state.currentPlayer && !this.state.ended) cls.push("current");
       probs.append(el("div", { class: cls.join(" "), title: `${this.playerName(i)} ${playerPoints(p)}점` }, [
-        el("span", { class: "prob-name" }, [this.playerName(i)]),
-        el("div", { class: "bar" }, [
-          el("div", { style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
+        el("span", { class: "text-xs opacity-70" }, [this.playerName(i)]),
+        el("div", { class: "prob-bar-track" }, [
+          el("div", { class: "prob-bar-fill", style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
         ]),
-        el("span", { class: "prob-pct" }, [pct != null ? `${Math.round(pct * 100)}%` : "…"]),
+        el("span", { class: "text-xs font-bold" }, [pct != null ? `${Math.round(pct * 100)}%` : "…"]),
       ]));
     }
     return probs;
