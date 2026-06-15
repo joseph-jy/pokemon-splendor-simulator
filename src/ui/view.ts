@@ -140,7 +140,7 @@ export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
     if (n > 0) {
       const fa = COLOR_FA[c];
       for (let i = 0; i < n; i++) {
-        bonusEl.append(el("span", { class: `bonus-chip ${COLOR_CLASS[c]}`, style: "width:14px;height:14px;font-size:8px;" }, [
+        bonusEl.append(el("span", { class: `bonus-chip ${COLOR_CLASS[c]}` }, [
           el("i", { class: `fa-solid ${fa}` }),
         ]));
       }
