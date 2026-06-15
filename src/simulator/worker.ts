@@ -6,19 +6,24 @@ import { simulateWinRates, type WinRates } from "./montecarlo";
 
 /** Worker 요청 메시지. */
 export interface SimRequest {
+  requestId: number;
   snapshot: Snapshot;
   humanIndex: number;
   n: number;
   seed: number;
 }
 
+export interface SimResponse extends WinRates {
+  requestId: number;
+}
+
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = (e: MessageEvent<SimRequest>) => {
-  const { snapshot, humanIndex, n, seed } = e.data;
+  const { requestId, snapshot, humanIndex, n, seed } = e.data;
   const state = deserialize(snapshot);
   const result = simulateWinRates(state, humanIndex, n, seed);
-  const msg: WinRates = result;
+  const msg: SimResponse = { ...result, requestId };
   ctx.postMessage(msg);
 };
 

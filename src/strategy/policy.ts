@@ -3,9 +3,10 @@
 import type { BallColor, CardDef, Color } from "@/game/types";
 import { COLORS } from "@/game/types";
 import type { GameState, PlayerState } from "@/game/state";
-import { cardOf, discountedCost, playerPoints } from "@/game/state";
+import { cardOf, cloneGame, discountedCost, playerPoints } from "@/game/state";
 import type { Evolution, MainAction } from "@/game/actions";
 import { legalEvolutions, legalMainActions } from "@/game/actions";
+import { applyMainAction } from "@/game/engine";
 import type { Rng } from "@/game/rng";
 import { WEIGHTS, USER_SOFTMAX_TEMP, USER_TOP_K } from "./weights";
 
@@ -192,7 +193,9 @@ export function chooseTurn(
     idx = softmaxPick(scores, rng);
   }
   const action = actions[idx]!;
-  const evolution = bestEvolution(state);
+  const preview = cloneGame(state);
+  applyMainAction(preview, action);
+  const evolution = bestEvolution(preview);
   return { action, evolution };
 }
 

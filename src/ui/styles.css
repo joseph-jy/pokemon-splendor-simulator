@@ -2,9 +2,197 @@
    포켓몬 스플렌더 — Custom styles (Tailwind/DaisyUI 보완)
    ═══════════════════════════════════════════════════ */
 
-/* ── Base overrides ───────────────────────────────── */
+/* ── Base + local utility classes ─────────────────── */
+* { box-sizing: border-box; }
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
 body {
-  font-family: 'DungGeunMo', monospace;
+  background: #111827;
+  color: #e8eaf2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+button, input, select, textarea {
+  font: inherit;
+}
+
+.h-screen { height: 100vh; }
+.w-screen { width: 100vw; }
+.overflow-hidden { overflow: hidden; }
+.overflow-x-auto { overflow-x: auto; }
+.font-game {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+.inline-block { display: inline-block; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.flex-1 { flex: 1 1 0%; }
+.absolute { position: absolute; }
+.top-1 { top: 4px; }
+.left-1 { left: 4px; }
+.mr-1 { margin-right: 4px; }
+.mr-2 { margin-right: 8px; }
+.mt-0\.5 { margin-top: 2px; }
+.mt-4 { margin-top: 16px; }
+.mb-1 { margin-bottom: 4px; }
+.mb-4 { margin-bottom: 16px; }
+.p-6 { padding: 24px; }
+.px-3 { padding-left: 12px; padding-right: 12px; }
+.px-6 { padding-left: 24px; padding-right: 24px; }
+.py-2 { padding-top: 8px; padding-bottom: 8px; }
+.py-4 { padding-top: 16px; padding-bottom: 16px; }
+.w-6 { width: 24px; height: 24px; }
+.w-8 { width: 32px; height: 32px; }
+.max-w-md { max-width: 448px; width: min(448px, calc(100vw - 32px)); }
+.rounded-full { border-radius: 9999px; }
+.text-\[8px\] { font-size: 8px; }
+.text-\[9px\] { font-size: 9px; }
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 14px; }
+.text-lg { font-size: 18px; }
+.text-2xl { font-size: 24px; }
+.font-bold { font-weight: 700; }
+.opacity-30 { opacity: 0.3; }
+.opacity-40 { opacity: 0.4; }
+.opacity-50 { opacity: 0.5; }
+.opacity-60 { opacity: 0.6; }
+.opacity-70 { opacity: 0.7; }
+.hover\:opacity-100:hover { opacity: 1; }
+.cursor-pointer { cursor: pointer; }
+.text-warning { color: #ffcb05; }
+.text-warning-content { color: #1a1d2e; }
+.text-neutral-content { color: #f3f4f6; }
+.bg-warning { background: #ffcb05; }
+.bg-neutral { background: #374151; }
+.bg-base-200 { background: #1f2937; }
+.shadow-lg { box-shadow: 0 10px 15px rgba(0,0,0,0.25); }
+.shadow-2xl { box-shadow: 0 25px 50px rgba(0,0,0,0.45); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.1);
+  color: #e8eaf2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.btn:hover:not(:disabled) { background: rgba(255,255,255,0.16); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-sm { min-height: 28px; padding: 0 10px; font-size: 12px; }
+.btn-xs { min-height: 22px; padding: 0 8px; font-size: 11px; }
+.btn-warning { background: #f59e0b; color: #111827; border-color: #fbbf24; }
+.btn-warning:hover:not(:disabled) { background: #ffcb05; }
+.btn-success { background: #16a34a; color: #fff; border-color: #22c55e; }
+.btn-success:hover:not(:disabled) { background: #22c55e; }
+.btn-ghost { background: transparent; color: #e8eaf2; border-color: rgba(255,255,255,0.12); }
+.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.btn-outline { background: transparent; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  line-height: 1;
+  background: rgba(255,255,255,0.1);
+  color: #e8eaf2;
+}
+.badge-sm { min-height: 18px; padding: 2px 6px; font-size: 11px; }
+.badge-xs { min-height: 16px; padding: 1px 5px; font-size: 10px; }
+.badge-ghost { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.82); }
+.badge-primary { background: #3b82f6; color: #fff; }
+
+.alert {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.alert-info { background: rgba(59,130,246,0.18); color: #bfdbfe; border-color: rgba(59,130,246,0.35); }
+.alert-success { background: rgba(34,197,94,0.18); color: #bbf7d0; border-color: rgba(34,197,94,0.35); }
+.alert-error { background: rgba(239,68,68,0.18); color: #fecaca; border-color: rgba(239,68,68,0.35); }
+
+.avatar.placeholder > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card {
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}
+.card-actions { display: flex; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-align: left;
+}
+.table-sm th,
+.table-sm td {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.fa-solid {
+  display: inline-block;
+  min-width: 1em;
+  text-align: center;
+  font-style: normal;
+  line-height: 1;
+}
+.fa-solid::before { display: inline-block; }
+.fa-fire::before { content: "R"; }
+.fa-droplet::before { content: "B"; }
+.fa-moon::before { content: "K"; }
+.fa-heart::before { content: "P"; }
+.fa-bolt::before { content: "Y"; }
+.fa-star::before { content: "*"; }
+.fa-rotate-right::before { content: "↻"; }
+.fa-gamepad::before { content: "▣"; }
+.fa-circle-play::before { content: "▶"; }
+.fa-eye-slash::before { content: "◼"; }
+.fa-hand-pointer::before { content: "☝"; }
+.fa-check::before { content: "✓"; }
+.fa-user::before { content: "U"; }
+.fa-coins::before { content: "$"; }
+.fa-shield-halved::before { content: "◆"; }
+.fa-trophy::before { content: "★"; }
+.fa-bookmark::before { content: "▮"; }
+.fa-robot::before { content: "AI"; font-size: 0.75em; }
+.fa-wand-magic-sparkles::before { content: "✦"; }
+.fa-spinner::before { content: "◌"; }
+.fa-spin { animation: fa-spin 1s linear infinite; }
+@keyframes fa-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── Scrollbar thin ───────────────────────────────── */

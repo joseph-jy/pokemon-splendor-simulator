@@ -6,7 +6,8 @@ import {
 } from "@/game/state";
 import { computePay, legalEvolutions, legalMainActions } from "@/game/actions";
 import {
-  applyEvolution, applyMainAction, finishTurn, rankPlayers, takeTurn, winnerId,
+  applyEvolution, applyMainAction, canApplyEvolution, canApplyMainAction,
+  finishTurn, rankPlayers, takeTurn, winnerId,
 } from "@/game/engine";
 import { CARDS } from "@/data/cards";
 import { INITIAL_BALL_SUPPLY, REVEAL_PER_STAGE } from "@/data/balls";
@@ -280,6 +281,27 @@ describe("limits", () => {
     applyMainAction(s, { type: "reserve", cardId: card.id });
     expect(s.players[0]!.balls.gold).toBe(0);
     expect(s.players[0]!.reserved).toContain(card.id);
+  });
+
+  it("엔진 적용 단계에서 불법 메인 액션을 거부", () => {
+    const s = soloState({ balls: { red: 9 } });
+    const illegal = { type: "take2", color: "blue" } as const;
+    expect(canApplyMainAction(s, illegal)).toBe(false);
+    expect(() => applyMainAction(s, illegal)).toThrow(/illegal main action/);
+    expect(s.players[0]!.balls.blue).toBe(0);
+    expect(s.supply.blue).toBe(INITIAL_BALL_SUPPLY.blue);
+  });
+
+  it("엔진 적용 단계에서 불법 진화를 거부", () => {
+    const charmander = findCard((c) => c.name === "파이리");
+    const charmeleon = findCard((c) => c.name === "리자드");
+    const s = soloState({
+      scored: [charmander.id], board: [charmeleon.id], bonus: { yellow: 2 },
+    });
+    const illegal = { sourceId: charmander.id, targetId: charmeleon.id };
+    expect(canApplyEvolution(s, illegal)).toBe(false);
+    expect(() => applyEvolution(s, illegal)).toThrow(/illegal evolution/);
+    expect(s.players[0]!.scored).toEqual([charmander.id]);
   });
 });
 

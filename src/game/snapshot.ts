@@ -31,12 +31,18 @@ export interface Snapshot {
 const TIERS: readonly Tier[] = [1, 2, 3, "rare", "legendary"];
 
 export function serialize(s: GameState): Snapshot {
+  const decks = {} as Record<Tier, string[]>;
+  const board = {} as Record<Tier, string[]>;
+  for (const t of TIERS) {
+    decks[t] = s.decks[t].slice();
+    board[t] = s.board[t].slice();
+  }
   return {
     rngState: s.rng.state,
     numPlayers: s.numPlayers,
     supply: { ...s.supply },
-    decks: { ...s.decks },
-    board: { ...s.board },
+    decks,
+    board,
     players: s.players.map((p) => ({
       id: p.id,
       isHuman: p.isHuman,
@@ -85,4 +91,3 @@ export function deserialize(snap: Snapshot): GameState {
     evolvedThisTurn: snap.evolvedThisTurn,
   };
 }
-

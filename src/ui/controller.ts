@@ -8,7 +8,7 @@ import { legalEvolutions, legalMainActions, type MainAction, type Evolution } fr
 import { applyMainAction, applyEvolution, finishTurn, winnerId, rankPlayers } from "@/game/engine";
 import { chooseTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
-import type { WinRates } from "@/simulator/montecarlo";
+import type { SimResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
@@ -34,6 +34,8 @@ export class Controller {
   private msg: UIMsg = { kind: "info", text: "" };
   private winRates: number[] = [];
   private winRatesStale = true;
+  private winRateRequestSeq = 0;
+  private activeWinRateRequestId = 0;
   private aiRng = new Rng(98765);
   private probSeed = 1;
   private aiLog: string[] = [];
@@ -43,7 +45,8 @@ export class Controller {
   constructor(root: HTMLElement) {
     this.root = root;
     this.worker = new SimWorker();
-    this.worker.onmessage = (e: MessageEvent<WinRates>) => {
+    this.worker.onmessage = (e: MessageEvent<SimResponse>) => {
+      if (e.data.requestId !== this.activeWinRateRequestId) return;
       this.winRates = e.data.rates;
       this.winRatesStale = false;
       this.renderProbs();
@@ -56,6 +59,7 @@ export class Controller {
     this.msg = { kind: "info", text: `새 게임 시작 (시드 ${seed}). 선공: ${this.playerName(this.state.startingPlayer)}.` };
     this.winRates = new Array(4).fill(0.25);
     this.winRatesStale = true;
+    this.activeWinRateRequestId = ++this.winRateRequestSeq;
     this.probSeed = (Math.random() * 1e9) | 0;
     this.aiLog = [];
     this.ballPickColors = [];
@@ -494,7 +498,7 @@ export class Controller {
     const me = this.state.players[HUMAN_INDEX]!;
     const reserveOk = isStage && me.reserved.length < MAX_RESERVED;
 
-    const clickable = myTurn && affordable;
+    const clickable = myTurn;
     const dim = myTurn && !affordable;
     const showReserveBtn = myTurn && isStage && reserveOk;
 
@@ -633,7 +637,7 @@ export class Controller {
         size: 48,
         label: true,
         affordable: myTurn && affordable,
-        onclick: myTurn && affordable ? () => this.onReservedCardClick(id) : undefined,
+        onclick: myTurn ? () => this.onReservedCardClick(id) : undefined,
       });
       mc.addEventListener("mouseenter", () => showTooltip(mc, card));
       mc.addEventListener("mouseleave", () => hideTooltip());
@@ -805,8 +809,10 @@ export class Controller {
   private requestWinProb(): void {
     if (this.state.ended) return;
     const snap: Snapshot = serialize(this.state);
+    const requestId = ++this.winRateRequestSeq;
+    this.activeWinRateRequestId = requestId;
     this.winRatesStale = true;
-    this.worker.postMessage({ snapshot: snap, humanIndex: HUMAN_INDEX, n: MC_N, seed: this.probSeed++ });
+    this.worker.postMessage({ requestId, snapshot: snap, humanIndex: HUMAN_INDEX, n: MC_N, seed: this.probSeed++ });
   }
 
   private renderProbs(): void {

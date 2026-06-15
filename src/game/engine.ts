@@ -4,9 +4,40 @@ import { COLORS } from "./types";
 import type { GameState, PlayerState } from "./state";
 import { cardOf, playerPoints, refillBoard, withinBallLimit } from "./state";
 import type { Evolution, MainAction } from "./actions";
-import { legalMainActions } from "./actions";
+import { legalEvolutions, legalMainActions } from "./actions";
 
 export const WIN_THRESHOLD = 18;
+const BALL_COLORS: readonly BallColor[] = [...COLORS, "gold"];
+
+function sameColorSet(a: readonly Color[], b: readonly Color[]): boolean {
+  if (a.length !== b.length) return false;
+  const aa = [...a].sort();
+  const bb = [...b].sort();
+  return aa.every((c, i) => c === bb[i]);
+}
+
+function samePay(a: Record<BallColor, number>, b: Record<BallColor, number>): boolean {
+  return BALL_COLORS.every((c) => a[c] === b[c]);
+}
+
+function sameMainAction(a: MainAction, b: MainAction): boolean {
+  if (a.type !== b.type) return false;
+  switch (a.type) {
+    case "take3": return b.type === "take3" && sameColorSet(a.colors, b.colors);
+    case "take2": return b.type === "take2" && a.color === b.color;
+    case "reserve": return b.type === "reserve" && a.cardId === b.cardId;
+    case "reserveBlind": return b.type === "reserveBlind" && a.tier === b.tier;
+    case "acquire": return b.type === "acquire" && a.cardId === b.cardId && samePay(a.pay, b.pay);
+  }
+}
+
+export function canApplyMainAction(s: GameState, a: MainAction): boolean {
+  return legalMainActions(s).some((legal) => sameMainAction(a, legal));
+}
+
+export function canApplyEvolution(s: GameState, e: Evolution): boolean {
+  return legalEvolutions(s).some((legal) => legal.sourceId === e.sourceId && legal.targetId === e.targetId);
+}
 
 function gainBalls(s: GameState, p: PlayerState, color: BallColor, n: number): void {
   s.supply[color] -= n;
@@ -72,6 +103,9 @@ function applyAcquire(s: GameState, cardId: string, pay: Record<BallColor, numbe
 }
 
 export function applyMainAction(s: GameState, a: MainAction): void {
+  if (!canApplyMainAction(s, a)) {
+    throw new Error(`illegal main action: ${a.type}`);
+  }
   switch (a.type) {
     case "take3": applyTake3(s, a.colors); break;
     case "take2": applyTake2(s, a.color); break;
@@ -82,18 +116,11 @@ export function applyMainAction(s: GameState, a: MainAction): void {
 }
 
 export function applyEvolution(s: GameState, e: Evolution): void {
-  if (s.evolvedThisTurn) return;
-  const p = s.players[s.currentPlayer]!;
-  const source = cardOf(e.sourceId);
-  const target = cardOf(e.targetId);
-  // 검증: source 가 scored, target romanized 일치, evoCost 충족
-  if (!p.scored.includes(e.sourceId)) return;
-  if (target.romanized !== source.evolvesTo) return;
-  if (source.evoCost) {
-    for (const c of COLORS) {
-      if ((source.evoCost[c] ?? 0) > p.bonus[c]) return;
-    }
+  if (!canApplyEvolution(s, e)) {
+    throw new Error("illegal evolution");
   }
+  const p = s.players[s.currentPlayer]!;
+  const target = cardOf(e.targetId);
   // source 타일 아래로(점수 제거, 보너스 유지는 bonus 불변으로 보장)
   const sidx = p.scored.indexOf(e.sourceId);
   if (sidx >= 0) p.scored.splice(sidx, 1);
