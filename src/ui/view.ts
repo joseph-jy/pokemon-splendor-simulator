@@ -89,8 +89,9 @@ export function ballChip(color: BallColor, count: number): HTMLElement {
 /** 컬러별 보너스 표시(원형 배지). */
 export function bonusBadge(c: Color, n: number): HTMLElement {
   const fa = COLOR_FA[c];
-  return el("span", { class: `bonus-chip ${COLOR_CLASS[c]}`, title: `${COLOR_LABEL[c]} 보너스 ${n}` }, [
+  return el("span", { class: `bonus-chip bonus-count-chip ${COLOR_CLASS[c]}`, title: `${COLOR_LABEL[c]} 보너스 ${n}` }, [
     el("i", { class: `fa-solid ${fa}` }),
+    el("span", { class: "bonus-count" }, [String(n)]),
   ]);
 }
 

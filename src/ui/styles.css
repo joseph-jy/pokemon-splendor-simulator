@@ -503,6 +503,16 @@ button, input, select, textarea {
 .bonus-chip.black { background: var(--ball-black); }
 .bonus-chip.pink { background: var(--ball-pink); color: #1a1d2e; }
 .bonus-chip.yellow { background: var(--ball-yellow); color: #1a1d2e; }
+.bonus-count-chip {
+  gap: 4px;
+  width: auto;
+  min-width: 34px;
+  padding: 0 7px;
+  border-radius: 12px;
+}
+.bonus-count-chip .bonus-count {
+  line-height: 1;
+}
 
 /* ── Cost pip ─────────────────────────────────────── */
 .cost-pip {
@@ -668,6 +678,26 @@ button, input, select, textarea {
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 5px;
+}
+.ai-panel .ai-card-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.ai-panel .ai-row-label {
+  min-width: 56px;
+  color: rgba(255,255,255,0.54);
+  font-size: 11px;
+  font-weight: 700;
+}
+.ai-panel .ai-reserved-row {
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255,255,255,0.1);
+}
+.ai-panel .ai-reserved-row .mini-card {
+  border-style: dashed;
 }
 .ai-panel .mini-card {
   width: 46px;
@@ -1033,6 +1063,11 @@ button, input, select, textarea {
     width: 19px;
     height: 19px;
     font-size: 10px;
+  }
+  .bonus-count-chip {
+    width: auto;
+    min-width: 30px;
+    padding: 0 6px;
   }
   .ball-chip {
     font-size: 11px;

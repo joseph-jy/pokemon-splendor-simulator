@@ -21,6 +21,10 @@ import {
 const HUMAN_INDEX = 0;
 const MC_N = 200;
 const AI_DELAY_MS = 450;
+const AI_NAME_CANDIDATES = [
+  "레드", "그린", "블루", "옐로", "실버", "크리스", "하루", "빛나",
+  "투희", "체렌", "벨", "칼름", "세레나", "릴리에", "단델", "난천",
+] as const;
 
 type Phase = "human-action" | "human-evolve" | "ai" | "ended";
 
@@ -41,6 +45,7 @@ export class Controller {
   private aiLog: string[] = [];
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
+  private playerNames: string[] = ["나", "AI 1", "AI 2", "AI 3"];
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -55,6 +60,7 @@ export class Controller {
 
   newGame(seed = (Math.random() * 1e9) | 0): void {
     this.state = createGame(seed, 4, HUMAN_INDEX);
+    this.assignPlayerNames(seed);
     this.phase = "human-action";
     this.msg = { kind: "info", text: `새 게임 시작 (시드 ${seed}). 선공: ${this.playerName(this.state.startingPlayer)}.` };
     this.winRates = new Array(4).fill(0.25);
@@ -71,7 +77,16 @@ export class Controller {
   // ── Helpers ──
 
   private playerName(i: number): string {
-    return i === HUMAN_INDEX ? "나" : `AI ${i}`;
+    return this.playerNames[i] ?? (i === HUMAN_INDEX ? "나" : `AI ${i}`);
+  }
+
+  private assignPlayerNames(seed: number): void {
+    const rng = new Rng((seed ^ 0x9e3779b9) >>> 0);
+    const candidates = rng.shuffle([...AI_NAME_CANDIDATES]);
+    this.playerNames = [];
+    for (let i = 0; i < this.state.numPlayers; i++) {
+      this.playerNames[i] = i === HUMAN_INDEX ? "나" : candidates.pop() ?? `AI ${i}`;
+    }
   }
 
   private isHumanTurn(): boolean {
@@ -133,18 +148,18 @@ export class Controller {
     switch (action.type) {
       case "acquire": {
         const card = cardOf(action.cardId);
-        return `AI ${playerIdx}: ${card.name} 획득`;
+        return `${this.playerName(playerIdx)}: ${card.name} 획득`;
       }
       case "reserve": {
         const card = cardOf(action.cardId);
-        return `AI ${playerIdx}: ${card.name} 보관`;
+        return `${this.playerName(playerIdx)}: ${card.name} 보관`;
       }
       case "take3":
-        return `AI ${playerIdx}: ${action.colors.map((c) => COLOR_DISPLAY[c]).join("+")} 획득`;
+        return `${this.playerName(playerIdx)}: ${action.colors.map((c) => COLOR_DISPLAY[c]).join("+")} 획득`;
       case "take2":
-        return `AI ${playerIdx}: ${COLOR_DISPLAY[action.color]} 2개 획득`;
+        return `${this.playerName(playerIdx)}: ${COLOR_DISPLAY[action.color]} 2개 획득`;
       case "reserveBlind":
-        return `AI ${playerIdx}: ${action.tier}단계 더미 보관`;
+        return `${this.playerName(playerIdx)}: ${action.tier}단계 더미 보관`;
     }
   }
 
@@ -535,9 +550,9 @@ export class Controller {
     right.append(this.renderMePanel());
 
     // AI panels
-    right.append(this.renderAiPanel(1));
-    right.append(this.renderAiPanel(2));
-    right.append(this.renderAiPanel(3));
+    for (let i = 0; i < this.state.numPlayers; i++) {
+      if (i !== HUMAN_INDEX) right.append(this.renderAiPanel(i));
+    }
 
     // Action / message area
     right.append(this.renderActionPanel());
@@ -665,7 +680,7 @@ export class Controller {
             el("i", { class: "fa-solid fa-robot text-xs" }),
           ]),
         ]),
-        el("span", { class: "ai-name" }, [`AI ${index}`]),
+        el("span", { class: "ai-name" }, [this.playerName(index)]),
       ]),
       el("div", { class: "flex items-center gap-2" }, [
         el("span", { class: "ai-pts" }, [`${playerPoints(p)}점`]),
@@ -701,6 +716,21 @@ export class Controller {
         scoredRow.append(mc);
       }
       panel.append(scoredRow);
+    }
+
+    // Reserved cards are public in this simulator so the user can track AI plans.
+    if (p.reserved.length > 0) {
+      const reservedRow = el("div", { class: "ai-card-row ai-reserved-row" }, [
+        el("span", { class: "ai-row-label" }, [`보관 ${p.reserved.length}/${MAX_RESERVED}`]),
+      ]);
+      for (const id of p.reserved) {
+        const card = cardOf(id);
+        const mc = makeMiniCard(card, { size: 36 });
+        mc.addEventListener("mouseenter", () => showTooltip(mc, card));
+        mc.addEventListener("mouseleave", () => hideTooltip());
+        reservedRow.append(mc);
+      }
+      panel.append(reservedRow);
     }
 
     return panel;
@@ -751,7 +781,7 @@ export class Controller {
       panel.append(el("div", { class: "alert alert-info py-2 px-3 text-sm" }, [
         el("span", {}, [
           el("i", { class: "fa-solid fa-spinner fa-spin mr-1" }),
-          "AI 플레이어가 생각 중입니다…",
+          `${this.playerName(this.state.currentPlayer)} 생각 중입니다…`,
         ]),
       ]));
     }
