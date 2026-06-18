@@ -13,7 +13,7 @@ import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
 import {
-  el, ballIcon, ballChip, makeCardEl, makeMiniCard, bonusBadge,
+  el, ballIcon, ballChip, makeCardEl, makeMiniCard, colorCountBadge,
   showTooltip, hideTooltip, aiLogEl,
   showEvolutionToast, showCaptureToast,
 } from "./view";
@@ -21,6 +21,7 @@ import {
 const HUMAN_INDEX = 0;
 const MC_N = 200;
 const AI_DELAY_MS = 450;
+const MASTER_BALL_SPEND_CONFIRM = "이 카드를 구입하면 마스터볼이 소모됩니다. 계속하시겠습니까?";
 const AI_NAME_CANDIDATES = [
   "레드", "그린", "블루", "옐로", "실버", "크리스", "하루", "빛나",
   "투희", "체렌", "벨", "칼름", "세레나", "릴리에", "단델", "난천",
@@ -168,6 +169,14 @@ export class Controller {
   private humanPlay(action: MainAction): void {
     if (this.phase !== "human-action") return;
 
+    if (action.type === "acquire" && this.needsMasterBallSpendConfirm(action)) {
+      if (!window.confirm(MASTER_BALL_SPEND_CONFIRM)) {
+        this.setMsg({ kind: "info", text: "카드 구입을 취소했습니다." });
+        this.render();
+        return;
+      }
+    }
+
     // Show toast for special actions before applying
     if (action.type === "acquire") {
       const card = cardOf(action.cardId);
@@ -287,6 +296,53 @@ export class Controller {
     if (isNoble(card.tier)) return "보관 불가: 희귀/전설/환상 카드는 보관할 수 없습니다.";
     if (p.reserved.length >= MAX_RESERVED) return `보관 불가: 보관 한도(${MAX_RESERVED}장) 초과`;
     return "보관 불가";
+  }
+
+  private cardBonusColor(card: CardDef): Color | null {
+    return COLORS.find((c) => (card.bonus[c] ?? 0) > 0) ?? null;
+  }
+
+  private colorTotal(p: PlayerState, c: Color): number {
+    return p.bonus[c] + p.balls[c];
+  }
+
+  private colorTotalTitle(p: PlayerState, c: Color): string {
+    return `${COLOR_DISPLAY[c]} 총점수 ${this.colorTotal(p, c)} (보너스 ${p.bonus[c]} + 보유 볼 ${p.balls[c]})`;
+  }
+
+  private needsMasterBallSpendConfirm(action: MainAction): boolean {
+    if (action.type !== "acquire" || isNoble(cardOf(action.cardId).tier)) return false;
+    return action.pay.gold > 0;
+  }
+
+  private renderScoredStacks(cardIds: string[], size: number, label: boolean): HTMLElement {
+    const wrap = el("div", { class: "scored-stacks" });
+    const byColor = new Map<Color, string[]>();
+    for (const c of COLORS) byColor.set(c, []);
+
+    for (const id of cardIds) {
+      const card = cardOf(id);
+      const color = this.cardBonusColor(card);
+      if (color) byColor.get(color)!.push(id);
+    }
+
+    for (const c of COLORS) {
+      const ids = byColor.get(c)!;
+      if (ids.length === 0) continue;
+      const stack = el("div", { class: `card-color-stack stack-${c}` });
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i]!;
+        const card = cardOf(id);
+        const mc = makeMiniCard(card, { size, label });
+        mc.style.zIndex = String(i + 1);
+        mc.addEventListener("mouseenter", () => showTooltip(mc, card));
+        mc.addEventListener("mouseleave", () => hideTooltip());
+        stack.append(mc);
+      }
+      wrap.append(stack);
+    }
+
+    return wrap;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -598,43 +654,33 @@ export class Controller {
     ballsSection.append(ballsRow);
     panel.append(ballsSection);
 
-    // Bonuses
-    const bonusSection = el("div", { class: "panel-section" });
-    bonusSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
+    // Color totals: bonus + held colored balls
+    const totalSection = el("div", { class: "panel-section" });
+    totalSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
       el("i", { class: "fa-solid fa-shield-halved mr-1" }),
-      "보너스",
+      "총점수",
     ]));
-    const bonusRow = el("div", { class: "flex flex-wrap gap-1" });
+    const totalRow = el("div", { class: "flex flex-wrap gap-1" });
     for (const c of COLORS) {
-      if (p.bonus[c] > 0) bonusRow.append(bonusBadge(c, p.bonus[c]));
+      const total = this.colorTotal(p, c);
+      if (total > 0) totalRow.append(colorCountBadge(c, total, this.colorTotalTitle(p, c)));
     }
-    const hasBonus = COLORS.some((c) => p.bonus[c] > 0);
-    if (!hasBonus) bonusRow.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
-    bonusSection.append(bonusRow);
-    panel.append(bonusSection);
+    const hasTotal = COLORS.some((c) => this.colorTotal(p, c) > 0);
+    if (!hasTotal) totalRow.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
+    totalSection.append(totalRow);
+    panel.append(totalSection);
 
-    // Scored cards
+    // Scored cards grouped by bonus color
     const scoredSection = el("div", { class: "panel-section" });
     scoredSection.append(el("div", { class: "text-[9px] opacity-50 mb-1" }, [
       el("i", { class: "fa-solid fa-trophy mr-1" }),
       `획득 (${p.scored.length})`,
     ]));
-    const scoredScroll = el("div", { class: "card-scroll" });
-    const sortedScored = [...p.scored].sort((a, b) => {
-      const ca = cardOf(a), cb = cardOf(b);
-      const ia = COLORS.findIndex((c) => (ca.bonus[c] ?? 0) > 0);
-      const ib = COLORS.findIndex((c) => (cb.bonus[c] ?? 0) > 0);
-      return ia - ib;
-    });
-    for (const id of sortedScored) {
-      const card = cardOf(id);
-      const mc = makeMiniCard(card, { size: 48, label: true });
-      mc.addEventListener("mouseenter", () => showTooltip(mc, card));
-      mc.addEventListener("mouseleave", () => hideTooltip());
-      scoredScroll.append(mc);
-    }
-    if (p.scored.length === 0) scoredScroll.append(el("span", { class: "text-xs opacity-30" }, ["없음"]));
-    scoredSection.append(scoredScroll);
+    scoredSection.append(
+      p.scored.length > 0
+        ? this.renderScoredStacks(p.scored, 48, true)
+        : el("span", { class: "text-xs opacity-30" }, ["없음"]),
+    );
     panel.append(scoredSection);
 
     // Reserved cards
@@ -688,34 +734,26 @@ export class Controller {
       ]),
     ]));
 
-    // Balls + Bonuses compact
+    // Balls + color totals compact
     const row = el("div", { class: "ai-row" });
     for (const c of COLORS) {
       if (p.balls[c] > 0) row.append(ballChip(c, p.balls[c]));
     }
     if (p.balls.gold > 0) row.append(ballChip("gold", p.balls.gold));
-    for (const c of COLORS) {
-      if (p.bonus[c] > 0) row.append(bonusBadge(c, p.bonus[c]));
-    }
     panel.append(row);
 
-    // Scored cards (mini), sorted by bonus color
+    const totalRow = el("div", { class: "ai-row" });
+    const hasTotal = COLORS.some((c) => this.colorTotal(p, c) > 0);
+    if (hasTotal) totalRow.append(el("span", { class: "ai-row-label" }, ["총점수"]));
+    for (const c of COLORS) {
+      const total = this.colorTotal(p, c);
+      if (total > 0) totalRow.append(colorCountBadge(c, total, this.colorTotalTitle(p, c)));
+    }
+    if (hasTotal) panel.append(totalRow);
+
+    // Scored cards grouped by bonus color
     if (p.scored.length > 0) {
-      const scoredRow = el("div", { class: "ai-row" });
-      const sortedScored = [...p.scored].sort((a, b) => {
-        const ca = cardOf(a), cb = cardOf(b);
-        const ia = COLORS.findIndex((col) => (ca.bonus[col] ?? 0) > 0);
-        const ib = COLORS.findIndex((col) => (cb.bonus[col] ?? 0) > 0);
-        return ia - ib;
-      });
-      for (const id of sortedScored) {
-        const card = cardOf(id);
-        const mc = makeMiniCard(card, { size: 36 });
-        mc.addEventListener("mouseenter", () => showTooltip(mc, card));
-        mc.addEventListener("mouseleave", () => hideTooltip());
-        scoredRow.append(mc);
-      }
-      panel.append(scoredRow);
+      panel.append(this.renderScoredStacks(p.scored, 36, false));
     }
 
     // Reserved cards are public in this simulator so the user can track AI plans.

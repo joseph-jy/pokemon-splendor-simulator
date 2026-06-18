@@ -214,6 +214,7 @@ button, input, select, textarea {
   --ball-red-rgb: 242, 44, 38;
   --ball-blue-rgb: 33, 132, 178;
   --ball-black-rgb: 46, 41, 40;
+  --card-black-border-rgb: 226, 232, 240;
   --ball-pink-rgb: 235, 184, 210;
   --ball-yellow-rgb: 237, 232, 71;
   --ball-gold-rgb: 162, 93, 158;
@@ -226,6 +227,9 @@ button, input, select, textarea {
   --card-width: clamp(140px, 9.8vw, 172px);
   --card-image-height: clamp(96px, 6.6vw, 116px);
   --mini-card-width: 72px;
+  --scored-stack-overlap: 48px;
+  --ai-scored-stack-overlap: 27px;
+  --scored-stack-gap: 14px;
 }
 
 /* ── Main layout ──────────────────────────────────── */
@@ -246,8 +250,8 @@ button, input, select, textarea {
 }
 
 .game-right {
-  flex: 0 0 clamp(380px, 32vw, 520px);
-  min-width: 360px;
+  flex: 0 0 clamp(430px, 36vw, 600px);
+  min-width: 400px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -373,7 +377,7 @@ button, input, select, textarea {
 /* Card background tints based on bonus color */
 .poke-card.card-bg-red { background: rgba(var(--ball-red-rgb), 0.26); border: 3px solid rgba(var(--ball-red-rgb), 0.78); }
 .poke-card.card-bg-blue { background: rgba(var(--ball-blue-rgb), 0.3); border: 3px solid rgba(var(--ball-blue-rgb), 0.78); }
-.poke-card.card-bg-black { background: rgba(var(--ball-black-rgb), 0.45); border: 3px solid rgba(var(--ball-black-rgb), 0.9); }
+.poke-card.card-bg-black { background: rgba(var(--ball-black-rgb), 0.45); border: 3px solid rgba(var(--card-black-border-rgb), 0.92); }
 .poke-card.card-bg-pink { background: rgba(var(--ball-pink-rgb), 0.28); border: 3px solid rgba(var(--ball-pink-rgb), 0.9); }
 .poke-card.card-bg-yellow { background: rgba(var(--ball-yellow-rgb), 0.3); border: 3px solid rgba(var(--ball-yellow-rgb), 0.85); }
 .poke-card .card-img {
@@ -450,7 +454,7 @@ button, input, select, textarea {
 /* Mini card background tints (same classes as poke-card) */
 .mini-card.card-bg-red { background: rgba(var(--ball-red-rgb), 0.34); border: 2px solid rgba(var(--ball-red-rgb), 0.78); }
 .mini-card.card-bg-blue { background: rgba(var(--ball-blue-rgb), 0.36); border: 2px solid rgba(var(--ball-blue-rgb), 0.78); }
-.mini-card.card-bg-black { background: rgba(var(--ball-black-rgb), 0.5); border: 2px solid rgba(var(--ball-black-rgb), 0.9); }
+.mini-card.card-bg-black { background: rgba(var(--ball-black-rgb), 0.5); border: 2px solid rgba(var(--card-black-border-rgb), 0.92); }
 .mini-card.card-bg-pink { background: rgba(var(--ball-pink-rgb), 0.38); border: 2px solid rgba(var(--ball-pink-rgb), 0.9); }
 .mini-card.card-bg-yellow { background: rgba(var(--ball-yellow-rgb), 0.36); border: 2px solid rgba(var(--ball-yellow-rgb), 0.85); }
 .mini-card img {
@@ -518,7 +522,9 @@ button, input, select, textarea {
 .cost-pip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 2px;
+  min-width: 22px;
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 11px;
@@ -652,6 +658,42 @@ button, input, select, textarea {
   overflow-x: auto;
   padding: 3px 0 5px;
 }
+.scored-stacks {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--scored-stack-gap);
+  min-width: 0;
+  overflow-x: auto;
+  padding: 3px 2px 8px;
+}
+.card-color-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 0 auto;
+  min-width: var(--mini-card-width);
+}
+.card-color-stack .mini-card + .mini-card {
+  margin-top: calc(-1 * var(--scored-stack-overlap));
+}
+.scored-stacks .mini-card {
+  background: #111827;
+}
+.scored-stacks .mini-card.card-bg-red {
+  background: rgb(var(--ball-red-rgb));
+}
+.scored-stacks .mini-card.card-bg-blue {
+  background: rgb(var(--ball-blue-rgb));
+}
+.scored-stacks .mini-card.card-bg-black {
+  background: rgb(var(--ball-black-rgb));
+}
+.scored-stacks .mini-card.card-bg-pink {
+  background: rgb(var(--ball-pink-rgb));
+}
+.scored-stacks .mini-card.card-bg-yellow {
+  background: rgb(var(--ball-yellow-rgb));
+}
 
 /* ── AI panel (compact) ───────────────────────────── */
 .ai-panel {
@@ -682,11 +724,14 @@ button, input, select, textarea {
 .ai-panel .ai-card-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 5px;
   margin-top: 6px;
+  overflow-x: auto;
+  padding: 1px 2px 6px 0;
 }
 .ai-panel .ai-row-label {
+  flex: 0 0 auto;
   min-width: 56px;
   color: rgba(255,255,255,0.54);
   font-size: 11px;
@@ -700,13 +745,33 @@ button, input, select, textarea {
   border-style: dashed;
 }
 .ai-panel .mini-card {
-  width: 46px;
+  width: 50px;
 }
 .ai-panel .mini-card img {
-  height: 36px;
+  height: 40px;
 }
 .ai-panel .mini-card .mini-name {
   display: none;
+}
+.mini-card {
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.scored-stacks .mini-card:hover,
+.ai-card-row .mini-card:hover {
+  z-index: 4;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.32);
+}
+.ai-panel .scored-stacks {
+  gap: 10px;
+  margin-top: 6px;
+  padding: 1px 2px 6px 0;
+}
+.ai-panel .card-color-stack {
+  min-width: 50px;
+}
+.ai-panel .card-color-stack .mini-card + .mini-card {
+  margin-top: calc(-1 * var(--ai-scored-stack-overlap));
 }
 
 /* ── Evolution overlay ────────────────────────────── */
@@ -799,10 +864,13 @@ button, input, select, textarea {
     --card-width: clamp(126px, 11vw, 150px);
     --card-image-height: clamp(84px, 7.5vw, 104px);
     --mini-card-width: 64px;
+    --scored-stack-overlap: 43px;
+    --ai-scored-stack-overlap: 25px;
+    --scored-stack-gap: 12px;
   }
   .game-right {
-    flex-basis: clamp(340px, 34vw, 430px);
-    min-width: 330px;
+    flex-basis: clamp(380px, 38vw, 470px);
+    min-width: 360px;
     padding: 10px;
   }
   .game-left {
@@ -835,6 +903,9 @@ button, input, select, textarea {
     --card-width: clamp(108px, 32vw, 136px);
     --card-image-height: clamp(72px, 22vw, 96px);
     --mini-card-width: 58px;
+    --scored-stack-overlap: 40px;
+    --ai-scored-stack-overlap: 24px;
+    --scored-stack-gap: 10px;
   }
   .game-layout {
     display: flex;
@@ -1118,6 +1189,9 @@ button, input, select, textarea {
     --card-width: 116px;
     --card-image-height: 78px;
     --mini-card-width: 54px;
+    --scored-stack-overlap: 38px;
+    --ai-scored-stack-overlap: 23px;
+    --scored-stack-gap: 9px;
   }
   .game-header {
     top: 0;

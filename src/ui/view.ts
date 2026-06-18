@@ -84,18 +84,16 @@ export function ballChip(color: BallColor, count: number): HTMLElement {
   ]);
 }
 
-// ── Bonus chip (FA icon + count, circular) ───────────────────────────
+// ── Color count chip ─────────────────────────────────────────────────
 
-/** 컬러별 보너스 표시(원형 배지). */
-export function bonusBadge(c: Color, n: number): HTMLElement {
-  const fa = COLOR_FA[c];
-  return el("span", { class: `bonus-chip bonus-count-chip ${COLOR_CLASS[c]}`, title: `${COLOR_LABEL[c]} 보너스 ${n}` }, [
-    el("i", { class: `fa-solid ${fa}` }),
+/** 컬러별 수량 표시(색 배경 + 숫자). */
+export function colorCountBadge(c: Color, n: number, title: string): HTMLElement {
+  return el("span", { class: `bonus-chip bonus-count-chip ${COLOR_CLASS[c]}`, title }, [
     el("span", { class: "bonus-count" }, [String(n)]),
   ]);
 }
 
-// ── Cost pip (FA icon + count, small) ────────────────────────────────
+// ── Cost pip (colored count, small) ──────────────────────────────────
 
 /** 카드 비용 pip 들(원가). */
 export function costPips(card: CardDef): HTMLElement {
@@ -103,11 +101,7 @@ export function costPips(card: CardDef): HTMLElement {
   for (const c of COLORS) {
     const n = card.cost[c];
     if (!n) continue;
-    const fa = COLOR_FA[c];
-    wrap.append(el("span", { class: `cost-pip ${COLOR_CLASS[c]}` }, [
-      el("i", { class: `fa-solid ${fa}` }),
-      String(n),
-    ]));
+    wrap.append(el("span", { class: `cost-pip ${COLOR_CLASS[c]}` }, [String(n)]));
   }
   return wrap;
 }
@@ -124,7 +118,7 @@ export interface CardOpts {
   badge?: string;
 }
 
-/** 카드 요소: 상단 비용, 중앙 이미지+이름, 하단 보너스+점수. */
+/** 카드 요소: 이미지, 이름/점수, 비용, 단계. */
 export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
   const cls = ["poke-card"];
   if (opts.clickable) cls.push("clickable");
@@ -133,20 +127,6 @@ export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
   // Add bonus color class for background tinting
   const bonusClr = cardBonusColor(card);
   if (bonusClr) cls.push(`card-bg-${COLOR_CLASS[bonusClr]}`);
-
-  // Bonus display
-  const bonusEl = el("div", { class: "card-bonus" });
-  for (const c of COLORS) {
-    const n = card.bonus[c] ?? 0;
-    if (n > 0) {
-      const fa = COLOR_FA[c];
-      for (let i = 0; i < n; i++) {
-        bonusEl.append(el("span", { class: `bonus-chip ${COLOR_CLASS[c]}` }, [
-          el("i", { class: `fa-solid ${fa}` }),
-        ]));
-      }
-    }
-  }
 
   // Stage badge
   const stage = stageOf(card.tier);
@@ -158,7 +138,6 @@ export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
       card.points ? el("span", { class: "card-pts" }, [`${card.points}P`]) : "",
     ]),
     costPips(card),
-    bonusEl,
     el("div", { class: "text-[8px] opacity-40 mt-0.5" }, [stageText]),
   ]);
 
