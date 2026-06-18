@@ -6,7 +6,7 @@ import {
 } from "@/game/state";
 import { legalEvolutions, legalMainActions, type MainAction, type Evolution } from "@/game/actions";
 import { applyMainAction, applyEvolution, finishTurn, winnerId, rankPlayers } from "@/game/engine";
-import { chooseTurn } from "@/strategy/policy";
+import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
 import type { SimResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
@@ -102,7 +102,7 @@ export class Controller {
 
   private aiMove(): void {
     if (this.state.ended) { this.startTurn(); return; }
-    const pick = chooseTurn(this.state, "ai", this.aiRng);
+    const pick = chooseStrongTurn(this.state, this.aiRng);
     if (!pick) { this.advance(); return; }
     const aiIdx = this.state.currentPlayer;
     const desc = this.describeAction(aiIdx, pick.action);

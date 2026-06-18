@@ -4,7 +4,7 @@ import { legalMainActions } from "@/game/actions";
 import { applyMainAction, applyEvolution, finishTurn, winnerId, rankPlayers } from "@/game/engine";
 import { Rng } from "@/game/rng";
 import {
-  chooseTurn, cardValue, actionValue, goalSet, bestEvolution,
+  chooseTurn, chooseStrongTurn, cardValue, actionValue, goalSet, bestEvolution,
 } from "@/strategy/policy";
 import { CARDS } from "@/data/cards";
 import type { CardDef, Color } from "@/game/types";
@@ -68,6 +68,36 @@ describe("strategy basics", () => {
     s.board[2] = [charmeleon.id];
     const evo = bestEvolution(s);
     expect(evo).not.toBeNull();
+  });
+
+  it("chooseStrongTurn: 합법 후보를 고르고 원본 상태를 직접 변경하지 않음", () => {
+    const s = createGame(1234, 4);
+    s.currentPlayer = 1;
+    const before = {
+      currentPlayer: s.currentPlayer,
+      supply: { ...s.supply },
+      player: {
+        balls: { ...s.players[1]!.balls },
+        reserved: [...s.players[1]!.reserved],
+        scored: [...s.players[1]!.scored],
+      },
+    };
+    const pick = chooseStrongTurn(s, new Rng(10));
+    expect(pick).not.toBeNull();
+    expect(legalMainActions(s)).toContainEqual(pick!.action);
+    expect(s.currentPlayer).toBe(before.currentPlayer);
+    expect(s.supply).toEqual(before.supply);
+    expect(s.players[1]!.balls).toEqual(before.player.balls);
+    expect(s.players[1]!.reserved).toEqual(before.player.reserved);
+    expect(s.players[1]!.scored).toEqual(before.player.scored);
+  });
+
+  it("chooseStrongTurn: 동일 상태·동일 RNG → 동일 선택", () => {
+    const a = createGame(4321, 4);
+    const b = createGame(4321, 4);
+    a.currentPlayer = 2;
+    b.currentPlayer = 2;
+    expect(chooseStrongTurn(a, new Rng(77))).toEqual(chooseStrongTurn(b, new Rng(77)));
   });
 });
 

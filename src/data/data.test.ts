@@ -34,6 +34,16 @@ describe("data integrity", () => {
     }
   });
 
+  it("known corrected card costs are encoded", () => {
+    const dragonairs = deckOf(2).filter((c) => c.name === "신뇽");
+    expect(dragonairs).toHaveLength(2);
+    expect(dragonairs.map((c) => c.cost)).toContainEqual({ blue: 4, pink: 4, yellow: 1 });
+    expect(dragonairs.map((c) => c.cost)).toContainEqual({ black: 6 });
+
+    const butterfree = deckOf(3).find((c) => c.name === "버터플");
+    expect(butterfree?.cost).toEqual({ blue: 6, black: 4 });
+  });
+
   it("모든 id 고유", () => {
     const ids = CARDS.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);

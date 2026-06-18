@@ -1,6 +1,6 @@
 // 정적 카드 데이터 — GAME.md 카드 목록을 인코딩.
 // 진화 라인별로 보너스색·진화 대상을 공유하므로 라인 스펙을 기준으로 전개.
-// 신뇽(2단계) 2건은 대칭 보정 적용(9줄=블루4,옐로4,블랙1 / 10줄=블랙6).
+// 일부 원본 표기 오탈자는 카드 패턴 기준으로 보정한다(예: 신뇽 첫 카드, 버터플).
 import type { CardDef, Color, ColorMap, Tier } from "@/game/types";
 
 /** 한글 이름 → romanized(에셋 파일명). 동일 포켓몬은 단계별로 서로 다른 이름·romanized. */
@@ -10,7 +10,7 @@ export const ROMAN: Record<string, string> = {
   꼬마돌: "geodude", 고오스: "gastly", 알통몬: "machop", 캐터피: "caterpie", 뿔충이: "weedle",
   구구: "pidgey", 니드런: "nidoran", 모다피: "bellsprout", 발챙이: "poliwag", 뚜벅초: "oddish",
   // 2단계
-  리자드: "charmeleon", 이상해풀: "ivysaur", 어니부기: "wartortle", 윤겔라: "horsea", 신뇽: "dragonair",
+  리자드: "charmeleon", 이상해풀: "ivysaur", 어니부기: "wartortle", 윤겔라: "kadabra", 신뇽: "dragonair",
   데구리: "graveler", 고우스트: "haunter", 근육몬: "machoke", 단데기: "metapod", 딱충이: "kakuna",
   피죤: "pidgeotto", 니드리나: "nidorina", 우츠동: "weepinbell", 슈륙챙이: "poliwhirl", 냄새꼬: "gloom",
   // 3단계
@@ -98,7 +98,7 @@ const STAGE2: readonly (readonly EvoCardSpec[])[] = [
   // 윤겔라
   [[3, { red: 4, yellow: 4, black: 1 }, { black: 4 }], [3, { pink: 6 }, { black: 4 }]],
   // 신뇽 (대칭 보정)
-  [[3, { blue: 4, yellow: 4, black: 1 }, { yellow: 4 }], [3, { black: 6 }, { yellow: 4 }]],
+  [[3, { blue: 4, pink: 4, yellow: 1 }, { yellow: 4 }], [3, { black: 6 }, { yellow: 4 }]],
   // 데구리
   [[2, { pink: 4, yellow: 2, black: 1 }, { black: 3 }], [2, { blue: 5, red: 2 }, { black: 3 }]],
   // 고우스트
@@ -139,7 +139,7 @@ const STAGE3: readonly (readonly LeafCardSpec[])[] = [
   // 괴력몬
   [[4, { yellow: 6, pink: 4 }]],
   // 버터플
-  [[4, { blue: 4, black: 4 }]],
+  [[4, { blue: 6, black: 4 }]],
   // 독침붕
   [[4, { red: 6, yellow: 4 }]],
   // 피죤투

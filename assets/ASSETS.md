@@ -50,7 +50,7 @@ assets/
  파이리(charmander) · 이상해씨(bulbasaur) · 꼬부기(squirtle) · 케이시(abra) · 미뇽(dratini) · 꼬마돌(geodude) · 고오스(gastly) · 알통몬(machop) · 캐터피(caterpie) · 뿔충이(weedle) · 구구(pidgey) · 니드런(nidoran) · 모다피(bellsprout) · 발챙이(poliwag) · 뚜벅초(oddish)
 
 ### 2단계 (stage2/)
- 리자드(charmeleon) · 이상해풀(ivysaur) · 어니부기(wartortle) · 윤겔라(horsea) · 신뇽(dragonair) · 데구리(graveler) · 고우스트(haunter) · 근육몬(machoke) · 단데기(metapod) · 딱충이(kakuna) · 피죤(pidgeotto) · 니드리나(nidorina) · 우츠동(weepinbell) · 슈륙챙이(poliwhirl) · 냄새꼬(gloom)
+ 리자드(charmeleon) · 이상해풀(ivysaur) · 어니부기(wartortle) · 윤겔라(kadabra) · 신뇽(dragonair) · 데구리(graveler) · 고우스트(haunter) · 근육몬(machoke) · 단데기(metapod) · 딱충이(kakuna) · 피죤(pidgeotto) · 니드리나(nidorina) · 우츠동(weepinbell) · 슈륙챙이(poliwhirl) · 냄새꼬(gloom)
 
 ### 3단계 (stage3/)
  리자몽(charizard) · 이상해꽃(venusaur) · 거북왕(blastoise) · 후딘(alakazam) · 망나뇽(dragonite) · 딱구리(golem) · 팬텀(gengar) · 괴력몬(machamp) · 버터플(butterfree) · 독침붕(beedrill) · 피죤투(pidgeot) · 니드퀸(nidoqueen) · 우츠보트(victreebel) · 강챙이(poliwrath) · 라플레시아(vileplume)
