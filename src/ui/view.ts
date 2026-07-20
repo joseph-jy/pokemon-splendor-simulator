@@ -60,9 +60,11 @@ const COLOR_LABEL: Record<BallColor, string> = {
   red: "빨강", blue: "파랑", black: "검정", pink: "분홍", yellow: "노랑", gold: "마스터볼",
 };
 
-/** 볼 색 → 작은 아이콘. 이미지 우선. */
-export function ballIcon(color: BallColor, size = 16): HTMLElement {
-  const src = ballImg(BALL_ROMAN[color]);
+/** 볼 색 → 작은 아이콘. 이미지 우선.
+ *  stars 지정 시 레벨별 별 개수 변형(`{color}_s{n}`)을 사용(카드 보너스용). */
+export function ballIcon(color: BallColor, size = 16, stars?: number): HTMLElement {
+  const key = stars && color !== "gold" ? `${BALL_ROMAN[color]}_s${stars}` : BALL_ROMAN[color];
+  const src = ballImg(key);
   if (src) {
     return el("img", { src, alt: COLOR_LABEL[color], width: size, height: size, class: "inline-block" });
   }
@@ -97,11 +99,54 @@ export function colorCountBadge(c: Color, n: number, title: string): HTMLElement
 
 /** 카드 비용 pip 들(원가). */
 export function costPips(card: CardDef): HTMLElement {
-  const wrap = el("div", { class: "card-cost" });
+  const wrap = el("div", { class: "pc-cost" });
   for (const c of COLORS) {
     const n = card.cost[c];
     if (!n) continue;
-    wrap.append(el("span", { class: `cost-pip ${COLOR_CLASS[c]}` }, [String(n)]));
+    wrap.append(el("div", { class: `pc-chip ${COLOR_CLASS[c]}` }, [
+      el("span", { class: "pc-chip-n" }, [String(n)]),
+      ballIcon(c, 15),
+    ]));
+  }
+  if (card.tier === "rare" || card.tier === "legendary") {
+    wrap.append(el("div", { class: "pc-chip gold", title: "마스터볼 1개 필요" }, [
+      el("span", { class: "pc-chip-n" }, ["1"]),
+      ballIcon("gold", 15),
+    ]));
+  }
+  return wrap;
+}
+
+/** 다음 진화(진화) 미리보기(상단 가운데): 다음 단계 이미지 + 필요한 보너스 구슬. 1·2단계만. */
+function evoPreview(card: CardDef): HTMLElement | null {
+  if (!card.evolvesTo || !card.evoCost) return null;
+  const nextTier: 1 | 2 | 3 = card.tier === 1 ? 2 : 3;
+  const costEls: (Node | string)[] = [];
+  let evoColor: Color | undefined;
+  for (const c of COLORS) {
+    const n = card.evoCost[c];
+    if (!n) continue;
+    if (!evoColor) evoColor = c;
+    costEls.push(String(n), ballIcon(c, 14));
+  }
+  const nextName = ROMAN_TO_KR[card.evolvesTo] ?? card.evolvesTo;
+  const colorCls = evoColor ? COLOR_CLASS[evoColor] : "";
+  return el("div", { class: `pc-evo ${colorCls}`, title: `진화 → ${nextName} (필요: 위 색 보너스)` }, [
+    el("img", { src: cardImg(nextTier, card.evolvesTo), alt: nextName, class: "pc-evo-img" }),
+    el("i", { class: "fa-solid fa-angles-down pc-evo-arr" }),
+    el("div", { class: "pc-evo-cost" }, costEls),
+  ]);
+}
+
+/** 카드가 주는 보너스 구슬 아이콘들(보너스 색 × 개수). 카드 우상단 스타일. */
+function bonusIcons(card: CardDef): HTMLElement {
+  const wrap = el("div", { class: "pc-bonus" });
+  const stage = stageOf(card.tier);
+  const stars = stage > 0 ? stage : card.tier === "rare" ? 4 : 5;
+  for (const c of COLORS) {
+    const n = card.bonus[c];
+    if (!n) continue;
+    for (let i = 0; i < n; i++) wrap.append(ballIcon(c, 44, stars));
   }
   return wrap;
 }
@@ -127,23 +172,28 @@ export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
   // Add bonus color class for background tinting
   const bonusClr = cardBonusColor(card);
   if (bonusClr) cls.push(`card-bg-${COLOR_CLASS[bonusClr]}`);
+  // 희귀·전설 = 강조 효과
+  if (card.tier === "rare") cls.push("pc-rare");
+  else if (card.tier === "legendary") cls.push("pc-legendary");
 
-  // Stage badge
-  const stage = stageOf(card.tier);
-  const stageText = stage > 0 ? `${stage}단계` : card.tier === "rare" ? "희귀" : "전설";
+  // 상단: 점수(좌) + 다음 진화 예고(가운데) + 보너스 구슬(우)
+  const evo = evoPreview(card);
+  const head = el("div", { class: "pc-head" }, [
+    el("div", { class: "pc-pts" }, [card.points ? String(card.points) : ""]),
+    evo ?? el("div", { class: "pc-evo-spacer" }),
+    bonusIcons(card),
+  ]);
 
-  const body = el("div", { class: "card-body" }, [
-    el("div", { class: "flex items-center justify-between" }, [
-      el("span", { class: "card-name" }, [card.name]),
-      card.points ? el("span", { class: "card-pts" }, [`${card.points}P`]) : "",
-    ]),
-    costPips(card),
-    el("div", { class: "text-[8px] opacity-40 mt-0.5" }, [stageText]),
+  // 아트
+  const art = el("div", { class: "pc-art" }, [
+    el("img", { src: cardImg(card.tier, card.romanized), alt: card.name, class: "card-img" }),
   ]);
 
   const node = el("div", { class: cls.join(" "), dataset: { id: card.id } }, [
-    el("img", { src: cardImg(card.tier, card.romanized), alt: card.name, class: "card-img" }),
-    body,
+    head,
+    art,
+    costPips(card),
+    el("div", { class: "pc-name" }, [card.name]),
   ]);
 
   if (opts.badge) node.append(el("span", { class: "badge badge-sm badge-primary absolute top-1 left-1" }, [opts.badge]));
@@ -156,16 +206,8 @@ export function makeCardEl(card: CardDef, opts: CardOpts = {}): HTMLElement {
     node.append(btn);
   }
 
-  if (opts.evoBtn) {
-    const evo = opts.evoBtn;
-    const btn = el("button", {
-      class: "evo-btn",
-      title: `진화 → ${evo.targetName} (+${evo.pointsGain}점)`,
-      dataset: { sourceId: evo.sourceId },
-    }, [`→${evo.pointsGain}P`]);
-    btn.addEventListener("click", (e) => { e.stopPropagation(); });
-    node.append(btn);
-  }
+  // 진화 가능 상태면 미리보기 블록을 강조
+  if (opts.evoBtn) node.classList.add("evo-ready");
 
   if (opts.onclick) node.addEventListener("click", opts.onclick);
   return node;

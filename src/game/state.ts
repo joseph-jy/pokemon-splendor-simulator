@@ -140,10 +140,17 @@ export function createGame(seed: number, numPlayers = 4, humanIndex = 0): GameSt
       evolutions: 0,
     });
   }
+  // 인원수별 시작 볼 조정: 4인 기준, 3인 -2, 2인(이하) -3. 골드(마스터볼)는 제외.
+  const cut = numPlayers <= 2 ? 3 : numPlayers === 3 ? 2 : 0;
+  const supply: Record<BallColor, number> = { ...INITIAL_BALL_SUPPLY };
+  for (const c of ["red", "blue", "black", "pink", "yellow"] as const) {
+    supply[c] = Math.max(0, INITIAL_BALL_SUPPLY[c] - cut);
+  }
+
   const state: GameState = {
     rng,
     numPlayers,
-    supply: { ...INITIAL_BALL_SUPPLY },
+    supply,
     decks,
     board,
     players,
@@ -192,15 +199,17 @@ export function cloneGame(s: GameState): GameState {
   };
 }
 
-/** 보드에서 카드 제거 후 덱에서 보충. */
+/** 보드에서 카드 제거 후 덱에서 보충. 빈 슬롯 자리에 새 카드를 제자리 교체(위치 유지). */
 export function refillBoard(state: GameState, tier: Tier, id: string): void {
   const arr = state.board[tier];
   const idx = arr.indexOf(id);
-  if (idx >= 0) arr.splice(idx, 1);
+  if (idx < 0) return;
+  const deck = state.decks[tier];
   const limit = tier === "rare" || tier === "legendary" ? 1 : REVEAL_PER_STAGE;
-  while (arr.length < limit && state.decks[tier].length > 0) {
-    arr.push(state.decks[tier].pop()!);
-  }
+  // 위치 유지: 빈 슬롯만 덱에서 제자리 교체(전체 왼쪽 재정렬 방지)
+  if (deck.length > 0) arr[idx] = deck.pop()!;
+  else arr.splice(idx, 1);
+  void limit;
 }
 
 /** 최대 보관 가능 여부. */

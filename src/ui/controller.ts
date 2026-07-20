@@ -10,7 +10,7 @@ import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
 import type { SimResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
-import { COLOR_DISPLAY, MAX_RESERVED } from "@/data/balls";
+import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
 import {
   el, ballIcon, ballChip, makeCardEl, makeMiniCard, colorCountBadge,
@@ -23,8 +23,11 @@ const MC_N = 200;
 const AI_DELAY_MS = 450;
 const MASTER_BALL_SPEND_CONFIRM = "이 카드를 구입하면 마스터볼이 소모됩니다. 계속하시겠습니까?";
 const AI_NAME_CANDIDATES = [
-  "레드", "그린", "블루", "옐로", "실버", "크리스", "하루", "빛나",
-  "투희", "체렌", "벨", "칼름", "세레나", "릴리에", "단델", "난천",
+  "리바이", "엘빈", "에렌", "미카사", "라이너", "애니", "지크", "피크", "아르민",
+] as const;
+
+const AI_TRAIT_PREFIXES = [
+  "신중한", "낙관적인", "대범한", "꼼꼼한", "차분한", "겸손한", "관대한",
 ] as const;
 
 type Phase = "human-action" | "human-evolve" | "ai" | "ended";
@@ -84,9 +87,12 @@ export class Controller {
   private assignPlayerNames(seed: number): void {
     const rng = new Rng((seed ^ 0x9e3779b9) >>> 0);
     const candidates = rng.shuffle([...AI_NAME_CANDIDATES]);
+    const traits = rng.shuffle([...AI_TRAIT_PREFIXES]);
     this.playerNames = [];
     for (let i = 0; i < this.state.numPlayers; i++) {
-      this.playerNames[i] = i === HUMAN_INDEX ? "나" : candidates.pop() ?? `AI ${i}`;
+      this.playerNames[i] = i === HUMAN_INDEX
+        ? "나"
+        : `${traits.pop() ?? ""} ${candidates.pop() ?? `AI ${i}`}`;
     }
   }
 
@@ -216,25 +222,46 @@ export class Controller {
     this.render();
   }
 
+  /** 볼 칩 클릭 순환: 0 → 1개 → (2개 가능하면 2개, 아니면 취소) → 2개에서 재클릭 시 취소. */
   private toggleBallColor(c: Color): void {
     if (!this.ballPickActive) return;
-    const idx = this.ballPickColors.indexOf(c);
-    if (idx >= 0) {
-      this.ballPickColors.splice(idx, 1);
-    } else if (this.ballPickColors.length < 3) {
-      this.ballPickColors.push(c);
+    const count = this.ballPickColors.filter((x) => x === c).length;
+    const pairMode = this.ballPickColors.length === 2 && new Set(this.ballPickColors).size === 1;
+    const canTake2 = legalMainActions(this.state).some((a) => a.type === "take2" && a.color === c);
+
+    if (pairMode) {
+      // 이미 같은 색 2개 상태: 같은 색 클릭=취소 / 다른 색 클릭=그 색 1개로 새로 시작
+      this.ballPickColors = count === 2 ? [] : [c];
+    } else if (count === 0) {
+      // 새 색 추가: 최대 3색, 단 손 여유칸(10 한도) 이내로 제한
+      const capacity = MAX_BALLS_IN_HAND - handBallCount(this.state.players[HUMAN_INDEX]!);
+      const maxSel = Math.min(3, capacity);
+      if (this.ballPickColors.length < maxSel) this.ballPickColors.push(c);
+    } else {
+      // 이미 1개 잡은 색을 재클릭: 그 색만 있고 2개 가능하면 2개로, 아니면 1개 취소
+      if (this.ballPickColors.length === 1 && canTake2) {
+        this.ballPickColors = [c, c];
+      } else {
+        this.ballPickColors.splice(this.ballPickColors.indexOf(c), 1);
+      }
     }
     this.render();
   }
 
   private confirmBallPick(): void {
     if (this.ballPickColors.length === 0) return;
-    const picked = [...this.ballPickColors].sort();
-    const match = legalMainActions(this.state).find((a) => {
-      if (a.type !== "take3") return false;
-      const ac = [...a.colors].sort();
-      return ac.length === picked.length && ac.every((v, i) => v === picked[i]);
-    });
+    const legal = legalMainActions(this.state);
+    const isPair = this.ballPickColors.length === 2 && new Set(this.ballPickColors).size === 1;
+    const match = isPair
+      ? legal.find((a) => a.type === "take2" && a.color === this.ballPickColors[0])
+      : (() => {
+          const picked = [...this.ballPickColors].sort();
+          return legal.find((a) => {
+            if (a.type !== "take3") return false;
+            const ac = [...a.colors].sort();
+            return ac.length === picked.length && ac.every((v, i) => v === picked[i]);
+          });
+        })();
     if (match) {
       this.humanPlay(match);
     } else {
@@ -508,10 +535,17 @@ export class Controller {
 
     // Ball pick flow controls
     if (this.ballPickActive) {
+      // 같은 색 그룹화: "검정 2개", "빨강, 파랑" 등으로 표기
+      const counts = new Map<Color, number>();
+      for (const c of this.ballPickColors) counts.set(c, (counts.get(c) ?? 0) + 1);
+      const labelParts: string[] = [];
+      for (const [c, n] of Array.from(counts)) {
+        labelParts.push(n > 1 ? `${COLOR_DISPLAY[c]} ${n}개` : COLOR_DISPLAY[c]);
+      }
       const flow = el("div", { class: "ball-pick-flow" });
       flow.append(el("span", { class: "pick-label" }, [
         el("i", { class: "fa-solid fa-hand-pointer mr-1" }),
-        `선택: ${this.ballPickColors.map((c) => COLOR_DISPLAY[c]).join(", ") || "없음"}`,
+        `선택: ${labelParts.join(", ") || "없음"}`,
       ]));
       const confirmBtn = el("button", {
         class: "btn btn-xs btn-success",
@@ -708,7 +742,54 @@ export class Controller {
     reservedSection.append(reservedScroll);
     panel.append(reservedSection);
 
+    // 메시지 + 진화 UI (획득 불가 / 진화 가능 등) — "나" 패널 아래에 표기
+    panel.append(this.renderMyActionFeedback());
+
     return panel;
+  }
+
+  /** "나" 패널 하단에 표시되는 메시지 + 진화 버튼 블록. */
+  private renderMyActionFeedback(): HTMLElement {
+    const wrap = el("div", { class: "my-feedback" });
+
+    // Message
+    if (this.msg.text && this.phase !== "ai") {
+      const alertCls = this.msg.kind === "ok" ? "alert-success" :
+        this.msg.kind === "bad" ? "alert-error" : "alert-info";
+      wrap.append(el("div", { class: `alert ${alertCls} py-2 px-3 text-sm` }, [
+        el("span", {}, [this.msg.text]),
+      ]));
+    }
+
+    // Evolve phase
+    if (this.phase === "human-evolve") {
+      const evos = legalEvolutions(this.state);
+      if (evos.length > 0) {
+        const evoWrap = el("div", { class: "flex flex-col gap-1" });
+        evoWrap.append(el("div", { class: "text-xs opacity-60" }, [
+          el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
+          "진화 가능!",
+        ]));
+        for (const evo of evos) {
+          const s = cardOf(evo.sourceId);
+          const t = cardOf(evo.targetId);
+          evoWrap.append(el("button", {
+            class: "btn btn-sm btn-warning",
+            onclick: () => this.humanEvolve(evo),
+          }, [
+            el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
+            `${s.name} → ${t.name} (+${t.points - s.points}점)`,
+          ]));
+        }
+        evoWrap.append(el("button", {
+          class: "btn btn-sm btn-ghost",
+          onclick: () => this.humanEvolve(null),
+        }, ["건너뛰기"]));
+        wrap.append(evoWrap);
+      }
+    }
+
+    return wrap;
   }
 
   private renderAiPanel(index: number): HTMLElement {
@@ -775,56 +856,20 @@ export class Controller {
   }
 
   private renderActionPanel(): HTMLElement {
-    const panel = el("div", { class: "player-panel" });
-
-    // Message
-    if (this.msg.text) {
-      const alertCls = this.msg.kind === "ok" ? "alert-success" :
-        this.msg.kind === "bad" ? "alert-error" : "alert-info";
-      panel.append(el("div", { class: `alert ${alertCls} py-2 px-3 text-sm` }, [
-        el("span", {}, [this.msg.text]),
-      ]));
-    }
-
-    // Evolve phase
-    if (this.phase === "human-evolve") {
-      const evos = legalEvolutions(this.state);
-      if (evos.length > 0) {
-        const evoWrap = el("div", { class: "flex flex-col gap-1" });
-        evoWrap.append(el("div", { class: "text-xs opacity-60" }, [
-          el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
-          "진화 가능!",
-        ]));
-        for (const evo of evos) {
-          const s = cardOf(evo.sourceId);
-          const t = cardOf(evo.targetId);
-          evoWrap.append(el("button", {
-            class: "btn btn-sm btn-warning",
-            onclick: () => this.humanEvolve(evo),
-          }, [
-            el("i", { class: "fa-solid fa-wand-magic-sparkles mr-1" }),
-            `${s.name} → ${t.name} (+${t.points - s.points}점)`,
-          ]));
-        }
-        evoWrap.append(el("button", {
-          class: "btn btn-sm btn-ghost",
-          onclick: () => this.humanEvolve(null),
-        }, ["건너뛰기"]));
-        panel.append(evoWrap);
-      }
-    }
-
-    // AI turn indicator
+    // AI turn indicator (메시지/진화 UI는 "나" 패널 아래로 이동됨)
     if (!this.isHumanTurn() && this.phase === "ai") {
+      const panel = el("div", { class: "player-panel" });
       panel.append(el("div", { class: "alert alert-info py-2 px-3 text-sm" }, [
         el("span", {}, [
           el("i", { class: "fa-solid fa-spinner fa-spin mr-1" }),
           `${this.playerName(this.state.currentPlayer)} 생각 중입니다…`,
         ]),
       ]));
+      return panel;
     }
 
-    return panel;
+    // 유저 턴에는 빈 패널을 그리지 않음 (공간 절약)
+    return el("div", { class: "action-spacer" });
   }
 
   // ── End game overlay ──

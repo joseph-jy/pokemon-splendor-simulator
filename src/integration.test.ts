@@ -64,7 +64,7 @@ describe("end-to-end integration", () => {
       }
       finishTurn(s);
     }
-    const wr = simulateWinRates(s, HUMAN, 50, 1);
+    const wr = simulateWinRates(s, HUMAN, 200, 1);
     expect(wr.rates.length).toBe(4);
     expect(wr.rates.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 4);
     // 리드 플레이어가 더 높은 승률 (대부분의 경우)

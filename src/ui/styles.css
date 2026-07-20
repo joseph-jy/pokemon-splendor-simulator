@@ -224,9 +224,9 @@ button, input, select, textarea {
   --ball-pink: rgb(var(--ball-pink-rgb));
   --ball-yellow: rgb(var(--ball-yellow-rgb));
   --ball-gold: rgb(var(--ball-gold-rgb));
-  --card-width: clamp(140px, 9.8vw, 172px);
-  --card-image-height: clamp(96px, 6.6vw, 116px);
-  --mini-card-width: 72px;
+  --card-width: clamp(164px, 11.5vw, 200px);
+  --card-image-height: clamp(118px, 8.2vw, 142px);
+  --mini-card-width: 76px;
   --scored-stack-overlap: 48px;
   --ai-scored-stack-overlap: 27px;
   --scored-stack-gap: 14px;
@@ -351,71 +351,212 @@ button, input, select, textarea {
   position: relative;
   flex: 0 0 var(--card-width);
   width: var(--card-width);
-  min-height: 202px;
-  border-radius: 10px;
+  min-height: 252px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: default;
-  border: 2px solid rgba(255,255,255,0.1);
-  background: rgba(0,0,0,0.4);
+  --pc-accent: 235,184,210;
+  /* 다크 테마에 맞춘 보너스 색 틴트 배경 */
+  background: linear-gradient(rgba(var(--pc-accent),0.3), rgba(var(--pc-accent),0.3)), rgba(0,0,0,0.42);
+  border: 3px solid rgb(var(--pc-accent));
+  box-shadow: 0 2px 9px rgba(0,0,0,0.4);
 }
 .poke-card.clickable {
   cursor: pointer;
 }
 .poke-card.clickable:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 9px 24px rgba(0,0,0,0.5);
 }
 .poke-card.affordable {
   border-color: #22c55e;
   animation: glow-pulse 1.5s ease-in-out infinite;
 }
+/* 살 수 없는 카드: 밝기는 유지하되 색을 빼서(탈색) 뒤로 물러나게 */
 .poke-card.dim {
-  opacity: 0.45;
+  opacity: 0.7;
+  filter: grayscale(0.55);
 }
 
-/* Card background tints based on bonus color */
-.poke-card.card-bg-red { background: rgba(var(--ball-red-rgb), 0.26); border: 3px solid rgba(var(--ball-red-rgb), 0.78); }
-.poke-card.card-bg-blue { background: rgba(var(--ball-blue-rgb), 0.3); border: 3px solid rgba(var(--ball-blue-rgb), 0.78); }
-.poke-card.card-bg-black { background: rgba(var(--ball-black-rgb), 0.45); border: 3px solid rgba(var(--card-black-border-rgb), 0.92); }
-.poke-card.card-bg-pink { background: rgba(var(--ball-pink-rgb), 0.28); border: 3px solid rgba(var(--ball-pink-rgb), 0.9); }
-.poke-card.card-bg-yellow { background: rgba(var(--ball-yellow-rgb), 0.3); border: 3px solid rgba(var(--ball-yellow-rgb), 0.85); }
+/* 보너스 색 → 카드 액센트(테두리/헤더/이름 배지) */
+.poke-card.card-bg-red    { --pc-accent: var(--ball-red-rgb); }
+.poke-card.card-bg-blue   { --pc-accent: var(--ball-blue-rgb); }
+.poke-card.card-bg-black  { --pc-accent: 51, 54, 61; }  /* 검정 카드는 실제로 어둡게 */
+.poke-card.card-bg-pink   { --pc-accent: var(--ball-pink-rgb); }
+.poke-card.card-bg-yellow { --pc-accent: var(--ball-yellow-rgb); }
+
+/* 상단: 점수(좌) + 진화 예고(가운데) + 보너스 구슬(우) */
+.poke-card .pc-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  min-height: 74px;
+  background: linear-gradient(180deg, rgba(var(--pc-accent),0.78), rgba(var(--pc-accent),0.4));
+  border-bottom: 2px solid rgba(var(--pc-accent),0.8);
+}
+.poke-card .pc-pts {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow: -2px -2px 0 rgb(var(--pc-accent)), 2px -2px 0 rgb(var(--pc-accent)),
+               -2px 2px 0 rgb(var(--pc-accent)), 2px 2px 0 rgb(var(--pc-accent)),
+               0 3px 5px rgba(0,0,0,0.3);
+}
+.poke-card .pc-bonus {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.poke-card .pc-bonus img { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)); }
+
+/* 아트 영역 */
+.poke-card .pc-art {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  min-height: 0;
+  overflow: hidden;
+}
 .poke-card .card-img {
   width: 100%;
-  height: var(--card-image-height);
+  height: 100%;
   object-fit: contain;
   background: rgba(255,255,255,0.03);
 }
-.poke-card .card-body {
-  padding: 8px 9px;
-  font-size: 13px;
-  line-height: 1.25;
-}
-.poke-card .card-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #e8eaf2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.poke-card .card-pts {
-  color: #ffcb05;
-  font-weight: 700;
-  font-size: 15px;
-}
-.poke-card .card-cost {
+
+/* 비용 칩 열 (좌하단, 아트 위 오버레이) */
+.poke-card .pc-cost {
+  position: absolute;
+  left: 6px;
+  bottom: 8px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 4px;
-  margin-top: 5px;
+  z-index: 2;
 }
-.poke-card .card-bonus {
+.poke-card .pc-chip {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 5px;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.9);
 }
+.poke-card .pc-chip-n {
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+}
+.poke-card .pc-chip img {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  width: 15px;
+  height: 15px;
+}
+.poke-card .pc-chip.red    { background: rgb(var(--ball-red-rgb)); }
+.poke-card .pc-chip.blue   { background: rgb(var(--ball-blue-rgb)); }
+.poke-card .pc-chip.black  { background: #33363d; }
+.poke-card .pc-chip.pink   { background: #e0559a; }
+.poke-card .pc-chip.yellow { background: #e0a91e; }
+.poke-card .pc-chip.gold   { background: #8b5cf6; }
+
+/* 다음 진화 미리보기 (상단 가운데) */
+.poke-card .pc-evo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 5px 3px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #6b7280, #4b5563);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.poke-card .pc-evo.red    { background: linear-gradient(180deg, #e85555, #c62222); }
+.poke-card .pc-evo.blue   { background: linear-gradient(180deg, #3f7ef2, #1c4fc0); }
+.poke-card .pc-evo.black  { background: linear-gradient(180deg, #4a4d57, #282a31); }
+.poke-card .pc-evo.pink   { background: linear-gradient(180deg, #ff77c8, #e23aa0); }
+.poke-card .pc-evo.yellow { background: linear-gradient(180deg, #f2ce55, #d6a516); }
+.poke-card .pc-evo-img {
+  width: 40px;
+  height: 46px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #fff;
+  border: 1.5px solid rgba(255,255,255,0.95);
+}
+.poke-card .pc-evo-arr { color: #fff; font-size: 9px; line-height: 1; opacity: 0.95; }
+.poke-card .pc-evo-cost {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+}
+.poke-card .pc-evo-cost img { width: 14px; height: 14px; }
+.poke-card .pc-evo-spacer { flex: 0 0 1px; }
+.poke-card.evo-ready .pc-evo {
+  outline: 2px solid #ffd93b;
+  animation: glow-pulse 1.5s ease-in-out infinite;
+}
+
+/* 희귀·전설 = 프리미엄 광택/그림자로 강조 */
+.poke-card.pc-rare {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.28), 0 3px 13px rgba(0,0,0,0.5);
+}
+.poke-card.pc-legendary {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.4), 0 4px 18px rgba(0,0,0,0.55);
+}
+.poke-card.pc-rare::after,
+.poke-card.pc-legendary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(120% 60% at 15% 0%, rgba(255,255,255,0.4), rgba(255,255,255,0) 55%);
+  mix-blend-mode: screen;
+}
+
+/* 이름 배지 (우측 하단 pill) */
+.poke-card .pc-name {
+  position: absolute;
+  right: 6px;
+  bottom: 8px;
+  z-index: 3;
+  max-width: calc(100% - 44px);
+  padding: 3px 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2b2b33;
+  background: rgba(255,255,255,0.94);
+  border: 2px solid rgb(var(--pc-accent));
+  border-radius: 999px;
+}
+
 .poke-card .reserve-btn {
   position: absolute;
   top: 6px;
@@ -429,7 +570,7 @@ button, input, select, textarea {
   color: #e8eaf2;
   border: 1px solid rgba(255,255,255,0.3);
   cursor: pointer;
-  z-index: 2;
+  z-index: 5;
 }
 .poke-card .reserve-btn:hover {
   background: rgba(255,255,255,0.2);
@@ -652,6 +793,16 @@ button, input, select, textarea {
   border-top: 1px solid rgba(255,255,255,0.06);
   padding-top: 6px;
 }
+
+/* "나" 패널 하단 피드백 (획득 불가 / 진화 가능 메시지) */
+.my-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255,203,5,0.25);
+}
 .card-scroll {
   display: flex;
   gap: 6px;
@@ -861,9 +1012,9 @@ button, input, select, textarea {
 /* ── Responsive board layout ─────────────────────── */
 @media (max-width: 1100px) and (min-width: 821px) {
   :root {
-    --card-width: clamp(126px, 11vw, 150px);
-    --card-image-height: clamp(84px, 7.5vw, 104px);
-    --mini-card-width: 64px;
+    --card-width: clamp(148px, 12.5vw, 178px);
+    --card-image-height: clamp(104px, 8.6vw, 124px);
+    --mini-card-width: 68px;
     --scored-stack-overlap: 43px;
     --ai-scored-stack-overlap: 25px;
     --scored-stack-gap: 12px;
@@ -880,7 +1031,7 @@ button, input, select, textarea {
     gap: 8px;
   }
   .poke-card {
-    min-height: 188px;
+    min-height: 226px;
   }
 }
 
