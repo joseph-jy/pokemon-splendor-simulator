@@ -9,13 +9,18 @@ import { Rng } from "@/game/rng";
 
 const HUMAN = 0;
 
-/** 인간은 항상 첫 번째 합법 행동(보통 볼 획득)을 선택. */
+/** 인간은 단순 규칙으로 선택: 카드 획득 > 최대 색 수 볼 획득 > 첫 합법 행동. */
 function humanPick(state: ReturnType<typeof createGame>) {
   const acts = legalMainActions(state);
   if (acts.length === 0) return null;
   // 카드 획득 가능하면 우선
   const acq = acts.find((a) => a.type === "acquire");
   if (acq) return acq;
+  // 볼 획득은 가장 많은 색(최대 3색)을 집는다 — 1·2색만 집는 약수 방지
+  const takes = acts.filter((a) => a.type === "take3");
+  if (takes.length > 0) {
+    return takes.reduce((best, a) => (a.colors.length > best.colors.length ? a : best));
+  }
   return acts[0]!;
 }
 
@@ -53,8 +58,8 @@ describe("end-to-end integration", () => {
   it("승리 확률: 매 턴 후 갱신 시 합리적 범위", () => {
     const s = createGame(777, 4, HUMAN);
     const rng = new Rng(99);
-    // 20턴 진행
-    for (let i = 0; i < 20 && !s.ended; i++) {
+    // 80턴(1인당 20턴) 진행 — 점수 선두가 갈릴 만큼 진행한다.
+    for (let i = 0; i < 80 && !s.ended; i++) {
       if (s.currentPlayer === HUMAN) {
         const a = humanPick(s);
         if (a) applyMainAction(s, a);
@@ -67,11 +72,16 @@ describe("end-to-end integration", () => {
     const wr = simulateWinRates(s, HUMAN, 200, 1);
     expect(wr.rates.length).toBe(4);
     expect(wr.rates.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 4);
-    // 리드 플레이어가 더 높은 승률 (대부분의 경우)
+    for (const r of wr.rates) {
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThanOrEqual(1);
+    }
+    // 점수 단독 선두가 최고 승률(시드 고정이므로 결정적)
     const pts = s.players.map((p) => playerPoints(p));
-    const leaderIdx = pts.indexOf(Math.max(...pts));
-    // 리더 승률이 평균(0.25) 이상일 것 (높은 신뢰도는 아니지만 기본 검증)
-    expect(wr.rates[leaderIdx]!).toBeGreaterThan(0.05);
+    const best = Math.max(...pts);
+    const leaderIdx = pts.indexOf(best);
+    expect(pts.filter((p) => p === best)).toHaveLength(1);
+    expect(wr.rates[leaderIdx]!).toBe(Math.max(...wr.rates));
   });
 
   it("재시작: 새 시드로 초기화 → 이전 상태와 독립", () => {

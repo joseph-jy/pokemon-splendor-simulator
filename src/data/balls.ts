@@ -24,10 +24,28 @@ export const COLOR_DISPLAY: Readonly<Record<BallColor, string>> = {
   gold: "마스터볼",
 };
 
-/** 게임 시작 시 공급 가능한 볼 수(GAME.md 볼 수). */
+/** 게임 시작 시 공급 가능한 볼 수(GAME.md 볼 수). 4인 기준. */
 export const INITIAL_BALL_SUPPLY: Readonly<Record<BallColor, number>> = {
   red: 7, blue: 7, black: 7, pink: 7, yellow: 7, gold: 5,
 };
+
+/** 지원 인원수. */
+export const PLAYER_COUNTS: readonly number[] = [2, 3, 4];
+
+/** 인원수별 컬러 볼 차감(4인 기준). 3인 -2, 2인 -3. 마스터볼은 인원 무관. */
+export function ballCutFor(numPlayers: number): number {
+  return numPlayers <= 2 ? 3 : numPlayers === 3 ? 2 : 0;
+}
+
+/** 인원수별 시작 공급량. 2인 4개씩 · 3인 5개씩 · 4인 7개씩 + 마스터볼 5. */
+export function ballSupplyFor(numPlayers: number): Record<BallColor, number> {
+  const cut = ballCutFor(numPlayers);
+  const supply: Record<BallColor, number> = { ...INITIAL_BALL_SUPPLY };
+  for (const c of ["red", "blue", "black", "pink", "yellow"] as const) {
+    supply[c] = Math.max(0, INITIAL_BALL_SUPPLY[c] - cut);
+  }
+  return supply;
+}
 
 /** 컬러 볼 보유 한도. */
 export const MAX_BALLS_IN_HAND = 10;

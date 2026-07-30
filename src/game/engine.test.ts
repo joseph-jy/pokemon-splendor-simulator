@@ -69,6 +69,24 @@ describe("setup", () => {
     expect(s.currentPlayer).toBeLessThan(4);
   });
 
+  it("인원수별 컬러 볼 공급: 2인 4개 · 3인 5개 · 4인 7개(마스터볼 불변)", () => {
+    for (const [n, per] of [[2, 4], [3, 5], [4, 7]] as const) {
+      const s = createGame(11, n);
+      expect(s.numPlayers).toBe(n);
+      expect(s.players).toHaveLength(n);
+      for (const c of ["red", "blue", "black", "pink", "yellow"] as const) {
+        expect(s.supply[c]).toBe(per);
+      }
+      expect(s.supply.gold).toBe(INITIAL_BALL_SUPPLY.gold);
+      expect(s.currentPlayer).toBeLessThan(n);
+    }
+  });
+
+  it("인원수는 2~4 로 보정", () => {
+    expect(createGame(3, 1).numPlayers).toBe(2);
+    expect(createGame(3, 9).numPlayers).toBe(4);
+  });
+
   it("동일 시드 → 동일 상태(보드·덱 동일)", () => {
     const a = createGame(99);
     const b = createGame(99);
@@ -162,6 +180,40 @@ describe("applyMainAction", () => {
     applyMainAction(s, { type: "take2", color: "red" });
     expect(s.players[0]!.balls.red).toBe(2);
     expect(s.supply.red).toBe(INITIAL_BALL_SUPPLY.red - 2);
+  });
+
+  it("서로 다른 색 1개씩: 1색·2색·3색 조합 모두 합법", () => {
+    const s = soloState({});
+    const takes = legalMainActions(s).filter((a) => a.type === "take3");
+    const sizes = new Set(takes.map((a) => a.colors.length));
+    expect(sizes).toEqual(new Set([1, 2, 3]));
+    // 5색 → C(5,1)+C(5,2)+C(5,3) = 5+10+10
+    expect(takes).toHaveLength(25);
+  });
+
+  it("서로 다른 색 1개씩: 1색만 가져오기 적용", () => {
+    const s = soloState({});
+    const before = s.supply.blue;
+    applyMainAction(s, { type: "take3", colors: ["blue"] });
+    expect(s.players[0]!.balls.blue).toBe(1);
+    expect(s.supply.blue).toBe(before - 1);
+  });
+
+  it("서로 다른 색 1개씩: 2색만 가져오기 적용", () => {
+    const s = soloState({});
+    applyMainAction(s, { type: "take3", colors: ["pink", "yellow"] });
+    const p = s.players[0]!;
+    expect(p.balls.pink).toBe(1);
+    expect(p.balls.yellow).toBe(1);
+    expect(p.balls.red).toBe(0);
+  });
+
+  it("같은 색 2개는 take2 로만 가능(take3 에 같은 색 중복 지정 불가)", () => {
+    const s = soloState({});
+    // take3 = "서로 다른 색 1개씩" 이므로 중복 색 지정은 불법
+    expect(canApplyMainAction(s, { type: "take3", colors: ["red", "red"] })).toBe(false);
+    // 같은 색 2개는 전용 액션 take2 로 합법(공급 ≥ 4)
+    expect(canApplyMainAction(s, { type: "take2", color: "red" })).toBe(true);
   });
 
   it("reserve: 보드 카드 보관 + 마스터볼 획득, 보드 보충", () => {
@@ -259,12 +311,12 @@ describe("evolution", () => {
 });
 
 describe("limits", () => {
-  it("10볼 한도: take3 위반 시 해당 액션 미생성", () => {
-    // 8개 보유 → take3(11) 불가, take2(10) 가능(공급≥4)
+  it("10볼 한도: 여유칸을 넘는 볼 획득 액션 미생성", () => {
+    // 8개 보유 → 여유 2칸: 3색(11개) 불가, 1·2색은 가능
     const s = soloState({ balls: { red: 4, blue: 4 } });
-    const actions = legalMainActions(s);
-    const take3s = actions.filter((a) => a.type === "take3");
-    expect(take3s).toHaveLength(0);
+    const takes = legalMainActions(s).filter((a) => a.type === "take3");
+    expect(takes.every((a) => a.colors.length <= 2)).toBe(true);
+    expect(takes.some((a) => a.colors.length === 2)).toBe(true);
   });
 
   it("보관 한도 3장 초과 시 reserve 미생성", () => {

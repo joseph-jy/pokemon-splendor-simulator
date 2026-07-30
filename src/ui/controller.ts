@@ -10,7 +10,7 @@ import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
 import type { SimResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
-import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND } from "@/data/balls";
+import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND, PLAYER_COUNTS, ballSupplyFor } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
 import {
   el, ballIcon, ballChip, makeCardEl, makeMiniCard, colorCountBadge,
@@ -30,7 +30,9 @@ const AI_TRAIT_PREFIXES = [
   "신중한", "낙관적인", "대범한", "꼼꼼한", "차분한", "겸손한", "관대한",
 ] as const;
 
-type Phase = "human-action" | "human-evolve" | "ai" | "ended";
+const DEFAULT_PLAYERS = 4;
+
+type Phase = "setup" | "human-action" | "human-evolve" | "ai" | "ended";
 
 interface UIMsg { kind: "info" | "ok" | "bad"; text: string }
 
@@ -38,7 +40,7 @@ export class Controller {
   private root: HTMLElement;
   private state!: GameState;
   private worker: Worker;
-  private phase: Phase = "human-action";
+  private phase: Phase = "setup";
   private msg: UIMsg = { kind: "info", text: "" };
   private winRates: number[] = [];
   private winRatesStale = true;
@@ -49,7 +51,11 @@ export class Controller {
   private aiLog: string[] = [];
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
-  private playerNames: string[] = ["나", "AI 1", "AI 2", "AI 3"];
+  private playerNames: string[] = [];
+  /** 직전 게임 인원수(다시 하기 기본값). */
+  private numPlayers = DEFAULT_PLAYERS;
+  /** 게임 세대 번호. 새 게임/인원 선택 시 증가시켜 이전 게임의 AI 타이머를 무효화한다. */
+  private gameSeq = 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -62,12 +68,21 @@ export class Controller {
     };
   }
 
-  newGame(seed = (Math.random() * 1e9) | 0): void {
-    this.state = createGame(seed, 4, HUMAN_INDEX);
+  /** 인원 선택 화면. 게임 진행 중 호출하면 진행 중인 게임은 폐기된다. */
+  showSetup(): void {
+    this.gameSeq++; // 진행 중이던 게임의 예약된 AI 턴 무효화
+    this.phase = "setup";
+    this.render();
+  }
+
+  newGame(numPlayers = this.numPlayers, seed = (Math.random() * 1e9) | 0): void {
+    this.gameSeq++;
+    this.numPlayers = numPlayers;
+    this.state = createGame(seed, numPlayers, HUMAN_INDEX);
     this.assignPlayerNames(seed);
     this.phase = "human-action";
-    this.msg = { kind: "info", text: `새 게임 시작 (시드 ${seed}). 선공: ${this.playerName(this.state.startingPlayer)}.` };
-    this.winRates = new Array(4).fill(0.25);
+    this.msg = { kind: "info", text: `${this.state.numPlayers}인 게임 시작 (시드 ${seed}). 선공: ${this.playerName(this.state.startingPlayer)}.` };
+    this.winRates = new Array(this.state.numPlayers).fill(1 / this.state.numPlayers);
     this.winRatesStale = true;
     this.activeWinRateRequestId = ++this.winRateRequestSeq;
     this.probSeed = (Math.random() * 1e9) | 0;
@@ -107,6 +122,7 @@ export class Controller {
   // ── Turn flow ──
 
   private startTurn(): void {
+    if (this.phase === "setup") return;
     if (this.state.ended) { this.phase = "ended"; this.render(); return; }
     if (this.isHumanTurn()) {
       this.phase = "human-action";
@@ -118,7 +134,8 @@ export class Controller {
       this.phase = "ai";
       this.setMsg({ kind: "info", text: `${this.playerName(this.state.currentPlayer)} 차례…` });
       this.render();
-      setTimeout(() => this.aiMove(), AI_DELAY_MS);
+      const seq = this.gameSeq;
+      setTimeout(() => { if (seq === this.gameSeq) this.aiMove(); }, AI_DELAY_MS);
     }
   }
 
@@ -217,6 +234,11 @@ export class Controller {
   // ── Ball pick flow ──
 
   private startBallPick(): void {
+    if (handBallCount(this.state.players[HUMAN_INDEX]!) >= MAX_BALLS_IN_HAND) {
+      this.setMsg({ kind: "bad", text: `볼 보유 한도(${MAX_BALLS_IN_HAND}개) — 더 가져올 수 없습니다.` });
+      this.render();
+      return;
+    }
     this.ballPickActive = true;
     this.ballPickColors = [];
     this.render();
@@ -377,12 +399,51 @@ export class Controller {
   // ═══════════════════════════════════════════════════════════════════
 
   render(): void {
+    if (this.phase === "setup") {
+      this.root.replaceChildren(this.renderSetup());
+      return;
+    }
     this.root.replaceChildren(
       this.renderGameLayout(),
     );
     if (this.state.ended) {
       this.root.append(this.renderEndOverlay());
     }
+  }
+
+  // ── Setup screen: 인원 선택 ──
+
+  private renderSetup(): HTMLElement {
+    const choices = el("div", { class: "setup-choices" });
+    for (const n of PLAYER_COUNTS) {
+      const perColor = ballSupplyFor(n).red;
+      choices.append(el("button", {
+        class: `setup-choice${n === this.numPlayers ? " selected" : ""}`,
+        onclick: () => this.newGame(n),
+      }, [
+        el("span", { class: "setup-choice-n" }, [`${n}인`]),
+        el("span", { class: "setup-choice-sub" }, [`나 + AI ${n - 1}명`]),
+        el("div", { class: "setup-choice-balls" }, [
+          ...COLORS.map((c) => ballIcon(c, 18)),
+          el("span", {}, [`각 ${perColor}개`]),
+        ]),
+        el("div", { class: "setup-choice-balls" }, [
+          ballIcon("gold", 18),
+          el("span", {}, [`마스터볼 ${ballSupplyFor(n).gold}개`]),
+        ]),
+      ]));
+    }
+
+    return el("div", { class: "setup-screen" }, [
+      el("div", { class: "setup-card" }, [
+        el("h1", { class: "setup-title" }, [
+          el("i", { class: "fa-solid fa-gamepad mr-2" }),
+          "포켓몬 스플렌더",
+        ]),
+        el("p", { class: "setup-desc" }, ["플레이 인원을 선택하세요. 인원수에 따라 컬러 볼 공급량이 달라집니다."]),
+        choices,
+      ]),
+    ]);
   }
 
   private renderGameLayout(): HTMLElement {
@@ -427,7 +488,8 @@ export class Controller {
 
     const newGameBtn = el("button", {
       class: "btn btn-sm btn-warning btn-outline",
-      onclick: () => this.newGame(),
+      title: "인원을 다시 선택하고 새 게임을 시작합니다",
+      onclick: () => this.showSetup(),
     }, [
       el("i", { class: "fa-solid fa-rotate-right mr-1" }),
       "새 게임",
@@ -442,6 +504,10 @@ export class Controller {
       el("span", { class: "badge badge-ghost" }, [
         el("i", { class: "fa-solid fa-circle-play mr-1" }),
         turnText,
+      ]),
+      el("span", { class: "badge badge-ghost" }, [
+        el("i", { class: "fa-solid fa-users mr-1" }),
+        `${this.state.numPlayers}인`,
       ]),
       logEl,
       newGameBtn,
@@ -547,6 +613,7 @@ export class Controller {
         el("i", { class: "fa-solid fa-hand-pointer mr-1" }),
         `선택: ${labelParts.join(", ") || "없음"}`,
       ]));
+      flow.append(el("span", { class: "pick-hint" }, ["서로 다른 색 1~3개 · 같은 색 2개"]));
       const confirmBtn = el("button", {
         class: "btn btn-xs btn-success",
         onclick: () => this.confirmBallPick(),
@@ -584,10 +651,11 @@ export class Controller {
       if (hasTake3) {
         wrap.append(el("span", {
           class: "text-xs text-warning cursor-pointer opacity-70 hover:opacity-100",
+          title: "서로 다른 색 볼을 1~3개까지 1개씩 가져올 수 있습니다",
           onclick: () => this.startBallPick(),
         }, [
           el("i", { class: "fa-solid fa-hand-pointer mr-1" }),
-          "볼 선택 →",
+          "볼 선택 (1~3색) →",
         ]));
       }
     }
@@ -904,13 +972,20 @@ export class Controller {
             el("tbody", {}, rows),
           ]),
         ]),
-        el("div", { class: "card-actions justify-center mt-4" }, [
+        el("div", { class: "card-actions justify-center mt-4 gap-2" }, [
           el("button", {
             class: "btn btn-warning",
-            onclick: () => this.newGame(),
+            onclick: () => this.newGame(this.state.numPlayers),
           }, [
             el("i", { class: "fa-solid fa-rotate-right mr-1" }),
-            "새 게임",
+            `${this.state.numPlayers}인으로 다시`,
+          ]),
+          el("button", {
+            class: "btn btn-outline",
+            onclick: () => this.showSetup(),
+          }, [
+            el("i", { class: "fa-solid fa-users mr-1" }),
+            "인원 변경",
           ]),
         ]),
       ]),

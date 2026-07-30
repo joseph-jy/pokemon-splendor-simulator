@@ -51,11 +51,11 @@ describe("strategy basics", () => {
     const actions = legalMainActions(s);
     const acquire = actions.find((a) => a.type === "acquire" && a.cardId === dragonite.id);
     expect(acquire).toBeTruthy();
-    const take3 = actions.find((a) => a.type === "take3");
-    expect(take3).toBeTruthy();
-    expect(actionValue(s, s.players[0]!, acquire!, goal)).toBeGreaterThan(
-      actionValue(s, s.players[0]!, take3!, goal),
-    );
+    const takeValues = actions
+      .filter((a) => a.type === "take3")
+      .map((a) => actionValue(s, s.players[0]!, a, goal));
+    expect(takeValues.length).toBeGreaterThan(0);
+    expect(actionValue(s, s.players[0]!, acquire!, goal)).toBeGreaterThan(Math.max(...takeValues));
   });
 
   it("bestEvolution: 진화 가능 시 양수 가치 후보 반환", () => {

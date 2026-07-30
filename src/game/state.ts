@@ -3,7 +3,7 @@
 import type { BallColor, CardDef, Color, Tier } from "./types";
 import { COLORS, isNoble } from "./types";
 import { CARDS_BY_ID, deckOf } from "@/data/cards";
-import { INITIAL_BALL_SUPPLY, MAX_BALLS_IN_HAND, MAX_RESERVED, REVEAL_PER_STAGE } from "@/data/balls";
+import { MAX_BALLS_IN_HAND, MAX_RESERVED, REVEAL_PER_STAGE, ballSupplyFor } from "@/data/balls";
 import { Rng } from "./rng";
 
 export interface PlayerState {
@@ -119,7 +119,8 @@ function reveal(state: GameState, tier: Tier, n: number): void {
   }
 }
 
-export function createGame(seed: number, numPlayers = 4, humanIndex = 0): GameState {
+export function createGame(seed: number, playerCount = 4, humanIndex = 0): GameState {
+  const numPlayers = Math.min(4, Math.max(2, playerCount | 0));
   const rng = new Rng(seed);
   const decks = {} as Record<Tier, string[]>;
   const board = {} as Record<Tier, string[]>;
@@ -140,12 +141,8 @@ export function createGame(seed: number, numPlayers = 4, humanIndex = 0): GameSt
       evolutions: 0,
     });
   }
-  // 인원수별 시작 볼 조정: 4인 기준, 3인 -2, 2인(이하) -3. 골드(마스터볼)는 제외.
-  const cut = numPlayers <= 2 ? 3 : numPlayers === 3 ? 2 : 0;
-  const supply: Record<BallColor, number> = { ...INITIAL_BALL_SUPPLY };
-  for (const c of ["red", "blue", "black", "pink", "yellow"] as const) {
-    supply[c] = Math.max(0, INITIAL_BALL_SUPPLY[c] - cut);
-  }
+  // 인원수별 시작 볼 조정: 4인 7개 / 3인 5개 / 2인 4개. 마스터볼은 인원 무관.
+  const supply: Record<BallColor, number> = ballSupplyFor(numPlayers);
 
   const state: GameState = {
     rng,

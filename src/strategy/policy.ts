@@ -281,7 +281,7 @@ function stateEval(state: GameState, playerIndex: number): number {
   }
 
   const rank = rankPlayers(state).indexOf(playerIndex);
-  let v = mine - strongestOpponent + (points - bestOpponentPoints) * 8 + (3 - rank) * 1.4;
+  let v = mine - strongestOpponent + (points - bestOpponentPoints) * 8 + (state.numPlayers - 1 - rank) * 1.4;
   if (points >= 15) v += (points - 14) * 8;
   if (points >= WIN_THRESHOLD) v += 450;
   if (bestOpponentPoints >= WIN_THRESHOLD) v -= 520;

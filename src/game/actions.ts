@@ -6,6 +6,7 @@ import { boardCardIds, canAfford, canReserveMore, cardOf, discountedCost, within
 import { STAGE_TIERS } from "./state";
 
 export type MainAction =
+  /** 서로 다른 색 1개씩(1~3색). 3색이 기본이지만 1·2색만 가져와도 된다. */
   | { type: "take3"; colors: Color[] }
   | { type: "take2"; color: Color }
   | { type: "reserve"; cardId: string }
@@ -34,16 +35,14 @@ function combos<T>(arr: readonly T[], k: number): T[][] {
   return out;
 }
 
+/** 서로 다른 색 볼을 1개씩: 1색·2색·3색 모두 선택 가능(공급·10볼 한도 이내 전 조합). */
 function legalTake3(s: GameState, p: PlayerState): MainAction[] {
   const avail = COLORS.filter((c) => s.supply[c] > 0);
   const out: MainAction[] = [];
-  if (avail.length >= 3) {
-    if (withinBallLimit(p, 3)) {
-      for (const c of combos(avail, 3)) out.push({ type: "take3", colors: c });
-    }
-  } else if (avail.length >= 1) {
-    // 남은 종류 ≤ 2: 전부 가져간다(2 or 1).
-    if (withinBallLimit(p, avail.length)) out.push({ type: "take3", colors: avail.slice() });
+  const maxPick = Math.min(3, avail.length);
+  for (let k = 1; k <= maxPick; k++) {
+    if (!withinBallLimit(p, k)) break;
+    for (const c of combos(avail, k)) out.push({ type: "take3", colors: c });
   }
   return out;
 }
