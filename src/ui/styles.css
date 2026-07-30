@@ -842,6 +842,27 @@ button, input, select, textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* 분석 모드 패널 (헤더 토글) */
+.analysis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(59,130,246,0.45);
+  border-radius: 8px;
+  background: rgba(59,130,246,0.10);
+}
+.analysis-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #bfdbfe;
+  letter-spacing: 0.02em;
+}
+.analysis-row {
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 /* "나" 패널 하단 피드백 (획득 불가 / 진화 가능 메시지) */
 .my-feedback {
   display: flex;

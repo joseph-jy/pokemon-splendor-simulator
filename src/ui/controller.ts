@@ -9,6 +9,7 @@ import { applyMainAction, applyEvolution, canApplyMainAction, finishTurn, winner
 import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
 import type { AiTurnRequest, AiTurnResponse, HintItem, HintRequest, HintResponse, WorkerResponse } from "@/simulator/worker";
+import { actionKey } from "@/strategy/mcts";
 import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND, PLAYER_COUNTS, ballSupplyFor } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
@@ -23,8 +24,10 @@ const MC_N = 200;
 const AI_DELAY_MS = 450;
 /** AI 턴 MCTS 반복 수. 검증 매치(AI_PLAN.md 2단계) 조건과 동일 — Worker 에서 계산해 UI 비차단. */
 const AI_MCTS_ITERATIONS = 400;
-/** 치트 모드 추천 수 개수. */
+/** 치트 모드 추천 수 개수(표시용). */
 const CHEAT_TOP_N = 3;
+/** Worker 에 요청하는 루트 통계 개수(분석 모드 채점은 전체 후보가 필요). */
+const HINT_TOP_N = 12;
 const MASTER_BALL_SPEND_CONFIRM = "이 카드를 구입하면 마스터볼이 소모됩니다. 계속하시겠습니까?";
 const AI_NAME_CANDIDATES = [
   "리바이", "엘빈", "에렌", "미카사", "라이너", "애니", "지크", "피크", "아르민",
@@ -60,6 +63,11 @@ export class Controller {
   private activeHintRequestId = 0;
   private hints: HintItem[] | null = null;
   private hintsPending = false;
+  /** 분석 모드(헤더 토글): 내가 고른 행동을 MCTS 최선 수와 비교해 채점. */
+  private analysisEnabled = false;
+  private analysisLog: string[] = [];
+  /** 추천 계산이 끝나기 전에 행동한 경우, 응답 도착 시 소급 채점할 행동. */
+  private pendingGradeAction: MainAction | null = null;
   private aiLog: string[] = [];
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
@@ -113,6 +121,8 @@ export class Controller {
     this.activeHintRequestId = 0;
     this.hints = null;
     this.hintsPending = false;
+    this.analysisLog = [];
+    this.pendingGradeAction = null;
     this.probSeed = (Math.random() * 1e9) | 0;
     this.aiLog = [];
     this.ballPickColors = [];
@@ -157,7 +167,7 @@ export class Controller {
       this.ballPickColors = [];
       this.ballPickActive = false;
       this.setMsg({ kind: "info", text: "내 차례 — 행동을 선택하세요." });
-      if (this.cheatEnabled) this.requestHint();
+      if (this.cheatEnabled || this.analysisEnabled) this.requestHint();
       this.render();
     } else {
       this.phase = "ai";
@@ -209,7 +219,8 @@ export class Controller {
   private advance(): void {
     this.hints = null;
     this.hintsPending = false;
-    this.activeHintRequestId = 0;
+    // 소급 채점 대기 중이면 해당 응답은 살려둔다(다음 requestHint 가 자연히 대체).
+    if (!this.pendingGradeAction) this.activeHintRequestId = 0;
     finishTurn(this.state);
     this.requestWinProb();
     this.startTurn();
@@ -229,7 +240,7 @@ export class Controller {
       snapshot: serialize(this.state),
       seed: (Math.random() * 0x7fffffff) | 0,
       iterations: AI_MCTS_ITERATIONS,
-      topN: CHEAT_TOP_N,
+      topN: HINT_TOP_N,
     };
     this.worker.postMessage(req);
   }
@@ -238,9 +249,72 @@ export class Controller {
     if (msg.requestId !== this.activeHintRequestId) return; // 지난 턴/게임의 응답
     this.activeHintRequestId = 0;
     this.hintsPending = false;
+    // 계산 완료 전에 이미 행동한 경우: 소급 채점만 하고 표시용 hints 는 버린다.
+    if (this.pendingGradeAction) {
+      const action = this.pendingGradeAction;
+      this.pendingGradeAction = null;
+      this.gradeWith(msg.hints, action);
+      this.render();
+      return;
+    }
     if (this.phase !== "human-action" || this.state.ended) return;
     this.hints = msg.hints;
     this.render();
+  }
+
+  // ── Analysis mode (헤더 토글) ──
+
+  private toggleAnalysis(): void {
+    this.analysisEnabled = !this.analysisEnabled;
+    if (
+      this.analysisEnabled && this.phase === "human-action" &&
+      !this.hints && !this.hintsPending && !this.state.ended
+    ) {
+      this.requestHint();
+    }
+    this.render();
+  }
+
+  /** 사람이 고른 행동을 이번 턴 MCTS 통계와 비교해 채점 로그에 기록. */
+  private gradeHumanAction(action: MainAction): void {
+    if (this.hints) {
+      this.gradeWith(this.hints, action);
+      return;
+    }
+    if (this.hintsPending) {
+      this.pendingGradeAction = action; // 응답 도착 시 소급 채점
+      return;
+    }
+    this.pushAnalysis(`🤔 ${this.actionText(action)} — 분석 데이터 없음(모드를 켠 직후예요)`);
+  }
+
+  private gradeWith(hints: HintItem[], action: MainAction): void {
+    if (hints.length === 0) return;
+    const best = hints[0]!; // 최다 방문 = AI 가 뒀을 수
+    const key = actionKey(action);
+    const chosen = hints.find((h) => actionKey(h.action) === key);
+    if (!chosen) {
+      this.pushAnalysis(
+        `🧐 ${this.actionText(action)} — AI 탐색 후보 밖의 수 (AI 최선: ${this.actionText(best.action)}, 가치 ${Math.round(best.value * 100)})`,
+      );
+      return;
+    }
+    const vChosen = Math.round(chosen.value * 100);
+    const vBest = Math.round(best.value * 100);
+    const diff = vBest - vChosen;
+    const label =
+      diff <= 1 ? "🌟 최선의 수!" :
+      diff <= 4 ? "👍 좋은 수" :
+      diff <= 9 ? "🙂 무난한 수" :
+      diff <= 15 ? "😅 아쉬운 수" : "💥 실수";
+    let line = `${label} ${this.actionText(action)} — 가치 ${vChosen}`;
+    if (diff > 1) line += ` (최선: ${this.actionText(best.action)}, 가치 ${vBest})`;
+    this.pushAnalysis(line);
+  }
+
+  private pushAnalysis(line: string): void {
+    this.analysisLog.push(line);
+    if (this.analysisLog.length > 5) this.analysisLog.shift();
   }
 
   // ── AI log ──
@@ -291,6 +365,7 @@ export class Controller {
       }
     }
 
+    if (this.analysisEnabled) this.gradeHumanAction(action);
     applyMainAction(this.state, action);
     this.ballPickActive = false;
     this.ballPickColors = [];
@@ -578,6 +653,15 @@ export class Controller {
       "새 게임",
     ]);
 
+    const analysisBtn = el("button", {
+      class: `btn btn-sm ${this.analysisEnabled ? "btn-info" : "btn-ghost btn-outline"}`,
+      title: "분석 모드: 내가 고른 행동이 AI 최선 수 대비 얼마나 좋았는지 채점합니다",
+      onclick: () => this.toggleAnalysis(),
+    }, [
+      el("i", { class: "fa-solid fa-chart-line mr-1" }),
+      `분석 ${this.analysisEnabled ? "ON" : "OFF"}`,
+    ]);
+
     return el("div", { class: "game-header" }, [
       el("span", { class: "title" }, [
         el("i", { class: "fa-solid fa-gamepad mr-1" }),
@@ -593,6 +677,7 @@ export class Controller {
         `${this.state.numPlayers}인`,
       ]),
       logEl,
+      analysisBtn,
       newGameBtn,
     ]);
   }
@@ -911,8 +996,9 @@ export class Controller {
       panel.append(el("div", { class: "cheat-row text-xs opacity-60" }, ["추천 없음"]));
       return panel;
     }
+    const top = this.hints.slice(0, CHEAT_TOP_N);
     const totalVisits = this.hints.reduce((a, h) => a + h.visits, 0);
-    this.hints.forEach((h, i) => {
+    top.forEach((h, i) => {
       const share = totalVisits > 0 ? Math.round((h.visits / totalVisits) * 100) : 0;
       panel.append(el("div", { class: "cheat-row" }, [
         el("span", { class: "cheat-rank" }, [`${i + 1}`]),
@@ -932,6 +1018,16 @@ export class Controller {
     // Cheat mode: 추천 수 패널
     if (this.cheatEnabled && this.phase === "human-action" && !this.state.ended) {
       wrap.append(this.buildCheatPanel());
+    }
+
+    // Analysis mode: 내 행동 채점 로그(최근 5건, 최신이 아래)
+    if (this.analysisEnabled && this.analysisLog.length > 0) {
+      const panel = el("div", { class: "analysis-panel" });
+      panel.append(el("div", { class: "analysis-title" }, ["📊 분석 — 내 수 평가"]));
+      for (const line of this.analysisLog) {
+        panel.append(el("div", { class: "analysis-row" }, [line]));
+      }
+      wrap.append(panel);
     }
 
     // Message

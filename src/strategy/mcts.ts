@@ -64,7 +64,7 @@ function newNode(): TreeNode {
 }
 
 /** 행동 식별 키. acquire 는 카드당 정규 지불 1개(computePay)라 cardId 로 충분. */
-function actionKey(a: MainAction): string {
+export function actionKey(a: MainAction): string {
   switch (a.type) {
     case "take3": return `t3:${[...a.colors].sort().join(",")}`;
     case "take2": return `t2:${a.color}`;
