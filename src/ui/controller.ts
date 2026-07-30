@@ -5,10 +5,10 @@ import {
   createGame, playerPoints, handBallCount, canAfford, cardOf, discountedCost,
 } from "@/game/state";
 import { legalEvolutions, legalMainActions, type MainAction, type Evolution } from "@/game/actions";
-import { applyMainAction, applyEvolution, finishTurn, winnerId, rankPlayers } from "@/game/engine";
+import { applyMainAction, applyEvolution, canApplyMainAction, finishTurn, winnerId, rankPlayers } from "@/game/engine";
 import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
-import type { SimResponse } from "@/simulator/worker";
+import type { AiTurnRequest, AiTurnResponse, WorkerResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND, PLAYER_COUNTS, ballSupplyFor } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
@@ -21,6 +21,8 @@ import {
 const HUMAN_INDEX = 0;
 const MC_N = 200;
 const AI_DELAY_MS = 450;
+/** AI 턴 MCTS 반복 수. 검증 매치(AI_PLAN.md 2단계) 조건과 동일 — Worker 에서 계산해 UI 비차단. */
+const AI_MCTS_ITERATIONS = 400;
 const MASTER_BALL_SPEND_CONFIRM = "이 카드를 구입하면 마스터볼이 소모됩니다. 계속하시겠습니까?";
 const AI_NAME_CANDIDATES = [
   "리바이", "엘빈", "에렌", "미카사", "라이너", "애니", "지크", "피크", "아르민",
@@ -48,6 +50,8 @@ export class Controller {
   private activeWinRateRequestId = 0;
   private aiRng = new Rng(98765);
   private probSeed = 1;
+  private aiTurnRequestSeq = 0;
+  private activeAiTurnRequestId = 0;
   private aiLog: string[] = [];
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
@@ -60,7 +64,11 @@ export class Controller {
   constructor(root: HTMLElement) {
     this.root = root;
     this.worker = new SimWorker();
-    this.worker.onmessage = (e: MessageEvent<SimResponse>) => {
+    this.worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      if (e.data.kind === "aiturn") {
+        this.onAiTurnComputed(e.data);
+        return;
+      }
       if (e.data.requestId !== this.activeWinRateRequestId) return;
       this.winRates = e.data.rates;
       this.winRatesStale = false;
@@ -71,6 +79,7 @@ export class Controller {
   /** 인원 선택 화면. 게임 진행 중 호출하면 진행 중인 게임은 폐기된다. */
   showSetup(): void {
     this.gameSeq++; // 진행 중이던 게임의 예약된 AI 턴 무효화
+    this.activeAiTurnRequestId = 0; // 계산 중이던 Worker AI 응답도 무효화
     this.phase = "setup";
     this.render();
   }
@@ -85,6 +94,7 @@ export class Controller {
     this.winRates = new Array(this.state.numPlayers).fill(1 / this.state.numPlayers);
     this.winRatesStale = true;
     this.activeWinRateRequestId = ++this.winRateRequestSeq;
+    this.activeAiTurnRequestId = 0; // 이전 게임의 Worker AI 응답 무효화
     this.probSeed = (Math.random() * 1e9) | 0;
     this.aiLog = [];
     this.ballPickColors = [];
@@ -139,9 +149,31 @@ export class Controller {
     }
   }
 
+  /** AI 턴 계산을 Worker(MCTS)에 위임. 응답은 onAiTurnComputed 에서 적용. */
   private aiMove(): void {
     if (this.state.ended) { this.startTurn(); return; }
-    const pick = chooseStrongTurn(this.state, this.aiRng);
+    const requestId = ++this.aiTurnRequestSeq;
+    this.activeAiTurnRequestId = requestId;
+    const req: AiTurnRequest = {
+      kind: "aiturn",
+      requestId,
+      snapshot: serialize(this.state),
+      seed: (this.aiRng.next() * 0x7fffffff) | 0,
+      iterations: AI_MCTS_ITERATIONS,
+    };
+    this.worker.postMessage(req);
+  }
+
+  private onAiTurnComputed(msg: AiTurnResponse): void {
+    if (msg.requestId !== this.activeAiTurnRequestId) return; // 이전 게임/턴의 응답
+    this.activeAiTurnRequestId = 0;
+    if (this.phase !== "ai" || this.state.ended) return;
+    // Worker 는 동일 스냅샷에서 계산하므로 항상 합법이어야 하나, 방어적으로 검증 후
+    // 불일치 시 동기 휴리스틱으로 대체한다.
+    let pick = msg.pick;
+    if (!pick || !canApplyMainAction(this.state, pick.action)) {
+      pick = chooseStrongTurn(this.state, this.aiRng);
+    }
     if (!pick) { this.advance(); return; }
     const aiIdx = this.state.currentPlayer;
     const desc = this.describeAction(aiIdx, pick.action);

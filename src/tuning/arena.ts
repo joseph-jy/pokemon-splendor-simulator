@@ -1,7 +1,9 @@
 // 자기대국 아레나(AI_PLAN.md 1단계). 좌석마다 다른 가중치로 헤드리스 대국을 돌린다.
 // UI 무의존 — game/strategy 에만 의존. 튜닝(scripts/tune.ts)과 검증 매치에서 사용.
+import type { GameState } from "@/game/state";
 import { createGame } from "@/game/state";
 import { applyEvolution, applyMainAction, finishTurn, rankPlayers, winnerId } from "@/game/engine";
+import type { Evolution, MainAction } from "@/game/actions";
 import {
   DEFAULT_BUDGET,
   chooseStrongTurn,
@@ -9,6 +11,20 @@ import {
 } from "@/strategy/policy";
 import type { StrategyWeights } from "@/strategy/weights";
 import { Rng } from "@/game/rng";
+
+/** 좌석 하나를 담당하는 에이전트: 상태를 변경하지 않고 턴 선택만 반환. */
+export type TurnAgent = (
+  s: GameState,
+  rng: Rng,
+) => { action: MainAction; evolution: Evolution | null } | null;
+
+/** 기존 휴리스틱 AI(chooseStrongTurn)를 에이전트로 래핑. */
+export function strongAgent(
+  w: StrategyWeights,
+  budget: SearchBudget = DEFAULT_BUDGET,
+): TurnAgent {
+  return (s, rng) => chooseStrongTurn(s, rng, w, budget);
+}
 
 export interface MatchResult {
   /** 승자 좌석 인덱스. */
@@ -18,19 +34,17 @@ export interface MatchResult {
   ranks: number[];
 }
 
-/** 한 판: 좌석별 가중치로 종료까지 진행. 같은 seed → 같은 보드(공통 난수). */
-export function playMatch(
-  weightsBySeat: readonly StrategyWeights[],
+/** 한 판: 좌석별 에이전트로 종료까지 진행. 같은 seed → 같은 보드(공통 난수). */
+export function playAgentMatch(
+  agents: readonly TurnAgent[],
   seed: number,
-  budget: SearchBudget = DEFAULT_BUDGET,
   maxTurns = 400,
 ): MatchResult {
-  const s = createGame(seed, weightsBySeat.length);
+  const s = createGame(seed, agents.length);
   const rng = new Rng((seed ^ 0x9e3779b9) >>> 0);
   let turns = 0;
   while (!s.ended && turns < maxTurns) {
-    const w = weightsBySeat[s.currentPlayer]!;
-    const pick = chooseStrongTurn(s, rng, w, budget);
+    const pick = agents[s.currentPlayer]!(s, rng);
     if (pick) {
       applyMainAction(s, pick.action);
       if (pick.evolution) applyEvolution(s, pick.evolution);
@@ -39,6 +53,16 @@ export function playMatch(
     turns++;
   }
   return { winner: winnerId(s), turns, ranks: rankPlayers(s) };
+}
+
+/** 한 판: 좌석별 가중치(기존 휴리스틱 AI)로 진행. */
+export function playMatch(
+  weightsBySeat: readonly StrategyWeights[],
+  seed: number,
+  budget: SearchBudget = DEFAULT_BUDGET,
+  maxTurns = 400,
+): MatchResult {
+  return playAgentMatch(weightsBySeat.map((w) => strongAgent(w, budget)), seed, maxTurns);
 }
 
 export interface SeriesResult {
@@ -55,16 +79,15 @@ export interface SeriesResult {
 }
 
 /**
- * 후보 1명 vs 기준 (numPlayers-1)명 시리즈.
+ * 후보 에이전트 1명 vs 기준 에이전트 (numPlayers-1)명 시리즈.
  * 좌석 로테이션: 블록(numPlayers판) 안에서 같은 보드 seed 를 공유해 분산을 줄인다.
  */
-export function playSeries(
-  candidate: StrategyWeights,
-  baseline: StrategyWeights,
+export function playAgentSeries(
+  candidate: TurnAgent,
+  baseline: TurnAgent,
   games: number,
   numPlayers: number,
   seedBase: number,
-  budget: SearchBudget = DEFAULT_BUDGET,
 ): SeriesResult {
   let wins = 0;
   let rankSum = 0;
@@ -75,7 +98,7 @@ export function playSeries(
     const seats = Array.from({ length: numPlayers }, (_, i) =>
       i === seat ? candidate : baseline,
     );
-    const r = playMatch(seats, seed, budget);
+    const r = playAgentMatch(seats, seed);
     if (r.winner === seat) wins++;
     rankSum += (numPlayers - 1 - r.ranks.indexOf(seat)) / (numPlayers - 1);
   }
@@ -86,6 +109,24 @@ export function playSeries(
     baselineRate: 1 / numPlayers,
     rankScore: rankSum / games,
   };
+}
+
+/** 후보 가중치 1명 vs 기준 가중치 (numPlayers-1)명 시리즈(기존 휴리스틱 AI 간 비교). */
+export function playSeries(
+  candidate: StrategyWeights,
+  baseline: StrategyWeights,
+  games: number,
+  numPlayers: number,
+  seedBase: number,
+  budget: SearchBudget = DEFAULT_BUDGET,
+): SeriesResult {
+  return playAgentSeries(
+    strongAgent(candidate, budget),
+    strongAgent(baseline, budget),
+    games,
+    numPlayers,
+    seedBase,
+  );
 }
 
 /** 승률의 95% 신뢰구간 반폭(정규 근사). */
