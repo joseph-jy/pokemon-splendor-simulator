@@ -21,7 +21,7 @@ import {
   winnerId,
 } from "@/game/engine";
 import type { Rng } from "@/game/rng";
-import { WEIGHTS, USER_SOFTMAX_TEMP, USER_TOP_K } from "./weights";
+import { WEIGHTS, USER_SOFTMAX_TEMP, USER_TOP_K, type StrategyWeights } from "./weights";
 
 /** 진화 테크 색상 집합(STRATEGY.md §1.2). 메인 3색 + 서브 집합. */
 const TECH_SETS: readonly Color[][] = [
@@ -76,8 +76,8 @@ export function goalSet(state: GameState, p: PlayerState): Color[] {
 }
 
 /** 볼 1개의 가치(목표 정렬 + 타겟 카드 비용 충족 기여). */
-function ballValue(state: GameState, p: PlayerState, c: Color, goal: Color[]): number {
-  let v = goal.includes(c) ? 0.55 : 0.04;
+function ballValue(state: GameState, p: PlayerState, c: Color, goal: Color[], w: StrategyWeights): number {
+  let v = goal.includes(c) ? w.ballGoal : w.ballOff;
   for (const t of [2, 3] as const) {
     for (const id of state.board[t]) {
       const card = cardOf(id);
@@ -94,24 +94,24 @@ function ballValue(state: GameState, p: PlayerState, c: Color, goal: Color[]): n
 }
 
 /** V_card(STRATEGY.md §2.1). */
-export function cardValue(p: PlayerState, card: CardDef, goal: Color[]): number {
-  let v = WEIGHTS.pts * card.points;
+export function cardValue(p: PlayerState, card: CardDef, goal: Color[], w: StrategyWeights = WEIGHTS): number {
+  let v = w.pts * card.points;
   for (const col of COLORS) {
     const n = card.bonus[col] ?? 0;
     if (n <= 0) continue;
     const marginal = goal.includes(col) ? 1.0 : 0.3;
     const diminishing = 1 / (1 + p.bonus[col] * 0.5);
-    v += WEIGHTS.bonus * n * marginal * diminishing;
+    v += w.bonus * n * marginal * diminishing;
   }
-  if (isNextEvoStep(p, card)) v += WEIGHTS.evo;
+  if (isNextEvoStep(p, card)) v += w.evo;
   const lc = lineColorOf(card);
-  if (lc && goal.includes(lc)) v += WEIGHTS.goal;
+  if (lc && goal.includes(lc)) v += w.goal;
   const cost = discountedCost(card, p.bonus);
   let costTotal = 0;
   for (const c of COLORS) costTotal += cost[c] ?? 0;
   const isNoble = card.tier === "rare" || card.tier === "legendary";
   if (isNoble) costTotal += 1; // 마스터볼 1개
-  v -= WEIGHTS.cost * costTotal * 0.22;
+  v -= w.cost * costTotal * w.costScale;
   return v;
 }
 
@@ -120,51 +120,57 @@ function gainsMaster(state: GameState, p: PlayerState): boolean {
 }
 
 /** 행동 가치. */
-export function actionValue(state: GameState, p: PlayerState, action: MainAction, goal: Color[]): number {
+export function actionValue(
+  state: GameState,
+  p: PlayerState,
+  action: MainAction,
+  goal: Color[],
+  w: StrategyWeights = WEIGHTS,
+): number {
   switch (action.type) {
     case "acquire": {
       const card = cardOf(action.cardId);
-      let v = cardValue(p, card, goal);
+      let v = cardValue(p, card, goal, w);
       v -= action.pay.gold * 0.12; // 마스터볼 사용 패널티
       return v;
     }
     case "reserve": {
       const card = cardOf(action.cardId);
-      let v = cardValue(p, card, goal) * WEIGHTS.reserve;
-      if (gainsMaster(state, p)) v += WEIGHTS.master;
+      let v = cardValue(p, card, goal, w) * w.reserve;
+      if (gainsMaster(state, p)) v += w.master;
       return v;
     }
     case "reserveBlind": {
       const tierVal = action.tier === 3 ? 1.0 : action.tier === 2 ? 0.7 : 0.4;
-      let v = WEIGHTS.blind * tierVal;
-      if (gainsMaster(state, p)) v += WEIGHTS.master;
+      let v = w.blind * tierVal;
+      if (gainsMaster(state, p)) v += w.master;
       return v;
     }
     case "take3": {
       let v = 0;
-      for (const c of action.colors) v += ballValue(state, p, c, goal);
+      for (const c of action.colors) v += ballValue(state, p, c, goal, w);
       return v;
     }
     case "take2": {
       // 같은 색 2개: 효율 보너스
-      return ballValue(state, p, action.color, goal) * 2 + 0.18;
+      return ballValue(state, p, action.color, goal, w) * 2 + w.take2Bonus;
     }
   }
 }
 
 /** V_evolve = 상위점수 − 하위점수 + tiebreak. */
-function evolutionValue(source: CardDef, target: CardDef): number {
-  return target.points - source.points + WEIGHTS.tiebreak;
+function evolutionValue(source: CardDef, target: CardDef, w: StrategyWeights): number {
+  return target.points - source.points + w.tiebreak;
 }
 
 /** 최적 진화(V_evolve 최대, 양수일 때만). */
-export function bestEvolution(state: GameState): Evolution | null {
+export function bestEvolution(state: GameState, w: StrategyWeights = WEIGHTS): Evolution | null {
   const evos = legalEvolutions(state);
   if (evos.length === 0) return null;
   let best: Evolution | null = null;
   let bestV = 0;
   for (const e of evos) {
-    const v = evolutionValue(cardOf(e.sourceId), cardOf(e.targetId));
+    const v = evolutionValue(cardOf(e.sourceId), cardOf(e.targetId), w);
     if (v > bestV) { bestV = v; best = e; }
   }
   return best;
@@ -193,12 +199,13 @@ export function chooseTurn(
   state: GameState,
   mode: PolicyMode,
   rng: Rng,
+  w: StrategyWeights = WEIGHTS,
 ): { action: MainAction; evolution: Evolution | null } | null {
   const p = state.players[state.currentPlayer]!;
   const actions = legalMainActions(state);
   if (actions.length === 0) return null;
   const goal = goalSet(state, p);
-  const scores = actions.map((a) => actionValue(state, p, a, goal));
+  const scores = actions.map((a) => actionValue(state, p, a, goal, w));
   let idx: number;
   if (mode === "ai") {
     idx = scores.indexOf(Math.max(...scores));
@@ -208,7 +215,7 @@ export function chooseTurn(
   const action = actions[idx]!;
   const preview = cloneGame(state);
   applyMainAction(preview, action);
-  const evolution = bestEvolution(preview);
+  const evolution = bestEvolution(preview, w);
   return { action, evolution };
 }
 
@@ -225,7 +232,7 @@ function legalMainActionsForPlayer(state: GameState, playerIndex: number): MainA
   }
 }
 
-function cardPressure(player: PlayerState, card: CardDef): number {
+function cardPressure(player: PlayerState, card: CardDef, w: StrategyWeights): number {
   let v = card.points * 3;
   let rawNeed = 0;
   for (const c of COLORS) {
@@ -239,30 +246,30 @@ function cardPressure(player: PlayerState, card: CardDef): number {
   let missing = 0;
   for (const c of COLORS) missing += Math.max(0, (cost[c] ?? 0) - player.balls[c]);
   if (isNoble(card.tier) && player.balls.gold < 1) missing += 1;
-  if (isNextEvoStep(player, card)) v += 2.8;
-  return v - Math.max(0, missing) * 0.75 - Math.max(0, rawNeed) * 0.08;
+  if (isNextEvoStep(player, card)) v += w.pressureEvo;
+  return v - Math.max(0, missing) * w.pressureMissing - Math.max(0, rawNeed) * 0.08;
 }
 
-function playerEval(state: GameState, playerIndex: number): number {
+function playerEval(state: GameState, playerIndex: number, w: StrategyWeights): number {
   const player = state.players[playerIndex]!;
-  let v = playerPoints(player) * 11 + player.evolutions * 2.2 + player.scored.length * 0.18;
-  for (const c of COLORS) v += player.bonus[c] * 1.35 + player.balls[c] * 0.16;
+  let v = playerPoints(player) * w.evalPts + player.evolutions * 2.2 + player.scored.length * 0.18;
+  for (const c of COLORS) v += player.bonus[c] * w.evalBonus + player.balls[c] * 0.16;
   v += player.balls.gold * 0.75;
-  for (const id of player.reserved) v += cardPressure(player, cardOf(id)) * 0.3;
+  for (const id of player.reserved) v += cardPressure(player, cardOf(id), w) * 0.3;
 
   let tempo = 0;
   for (const action of legalMainActionsForPlayer(state, playerIndex)) {
     if (action.type === "acquire") {
       const card = cardOf(action.cardId);
-      tempo = Math.max(tempo, cardPressure(player, card) + (card.points >= 3 ? 1.2 : 0));
+      tempo = Math.max(tempo, cardPressure(player, card, w) + (card.points >= 3 ? 1.2 : 0));
     } else if (action.type === "reserve") {
-      tempo = Math.max(tempo, cardPressure(player, cardOf(action.cardId)) * 0.28);
+      tempo = Math.max(tempo, cardPressure(player, cardOf(action.cardId), w) * 0.28);
     }
   }
-  return v + tempo * 0.65;
+  return v + tempo * w.evalTempo;
 }
 
-function stateEval(state: GameState, playerIndex: number): number {
+function stateEval(state: GameState, playerIndex: number, w: StrategyWeights): number {
   const player = state.players[playerIndex]!;
   const points = playerPoints(player);
   if (state.ended) {
@@ -271,18 +278,18 @@ function stateEval(state: GameState, playerIndex: number): number {
     return won * 20_000 - rank * 3_500 + points * 80 + player.evolutions * 25;
   }
 
-  const mine = playerEval(state, playerIndex);
+  const mine = playerEval(state, playerIndex, w);
   let strongestOpponent = -Infinity;
   let bestOpponentPoints = 0;
   for (const opponent of state.players) {
     if (opponent.id === playerIndex) continue;
-    strongestOpponent = Math.max(strongestOpponent, playerEval(state, opponent.id));
+    strongestOpponent = Math.max(strongestOpponent, playerEval(state, opponent.id, w));
     bestOpponentPoints = Math.max(bestOpponentPoints, playerPoints(opponent));
   }
 
   const rank = rankPlayers(state).indexOf(playerIndex);
-  let v = mine - strongestOpponent + (points - bestOpponentPoints) * 8 + (state.numPlayers - 1 - rank) * 1.4;
-  if (points >= 15) v += (points - 14) * 8;
+  let v = mine - strongestOpponent + (points - bestOpponentPoints) * w.ptDiff + (state.numPlayers - 1 - rank) * 1.4;
+  if (points >= 15) v += (points - 14) * w.ptDiff;
   if (points >= WIN_THRESHOLD) v += 450;
   if (bestOpponentPoints >= WIN_THRESHOLD) v -= 520;
   return v;
@@ -313,15 +320,16 @@ function blockValue(state: GameState, playerIndex: number, action: MainAction): 
 function applyCandidate(
   state: GameState,
   action: MainAction,
+  w: StrategyWeights,
 ): { state: GameState; evolution: Evolution | null } {
   const preview = cloneGame(state);
   applyMainAction(preview, action);
-  const evolution = bestEvolution(preview);
+  const evolution = bestEvolution(preview, w);
   if (evolution) applyEvolution(preview, evolution);
   return { state: preview, evolution };
 }
 
-function chooseGreedyTurn(state: GameState): { action: MainAction; evolution: Evolution | null } | null {
+function chooseGreedyTurn(state: GameState, w: StrategyWeights): { action: MainAction; evolution: Evolution | null } | null {
   const player = state.players[state.currentPlayer]!;
   const actions = legalMainActions(state);
   if (actions.length === 0) return null;
@@ -330,7 +338,7 @@ function chooseGreedyTurn(state: GameState): { action: MainAction; evolution: Ev
   let bestAction = actions[0]!;
   let bestScore = -Infinity;
   for (const action of actions) {
-    let score = actionValue(state, player, action, goal) + blockValue(state, state.currentPlayer, action) * 0.25;
+    let score = actionValue(state, player, action, goal, w) + blockValue(state, state.currentPlayer, action) * 0.25;
     if (action.type === "acquire") {
       const card = cardOf(action.cardId);
       score += card.points * 0.9;
@@ -343,13 +351,13 @@ function chooseGreedyTurn(state: GameState): { action: MainAction; evolution: Ev
     }
   }
 
-  const preview = applyCandidate(state, bestAction);
+  const preview = applyCandidate(state, bestAction, w);
   return { action: bestAction, evolution: preview.evolution };
 }
 
-function rolloutGreedy(state: GameState, maxTurns = 16): void {
+function rolloutGreedy(state: GameState, maxTurns: number, w: StrategyWeights): void {
   for (let turn = 0; turn < maxTurns && !state.ended; turn++) {
-    const pick = chooseGreedyTurn(state);
+    const pick = chooseGreedyTurn(state, w);
     if (pick) {
       applyMainAction(state, pick.action);
       if (pick.evolution) applyEvolution(state, pick.evolution);
@@ -358,10 +366,20 @@ function rolloutGreedy(state: GameState, maxTurns = 16): void {
   }
 }
 
+/** 탐색 예산(후보 수·rollout 깊이). 튜닝 시 축소해 속도를 벌 수 있다. */
+export interface SearchBudget {
+  candidates: number;
+  rolloutTurns: number;
+}
+
+export const DEFAULT_BUDGET: SearchBudget = { candidates: 18, rolloutTurns: 14 };
+
 /** 실제 AI 턴용 강화 정책: 상위 후보를 가상 적용한 뒤 짧은 greedy rollout 으로 비교한다. */
 export function chooseStrongTurn(
   state: GameState,
   rng?: Rng,
+  w: StrategyWeights = WEIGHTS,
+  budget: SearchBudget = DEFAULT_BUDGET,
 ): { action: MainAction; evolution: Evolution | null } | null {
   const playerIndex = state.currentPlayer;
   const player = state.players[playerIndex]!;
@@ -373,22 +391,22 @@ export function chooseStrongTurn(
     .map((action) => ({
       action,
       pre:
-        actionValue(state, player, action, goal)
-        + blockValue(state, playerIndex, action) * 0.65
+        actionValue(state, player, action, goal, w)
+        + blockValue(state, playerIndex, action) * w.block
         + (action.type === "acquire" ? cardOf(action.cardId).points * 1.1 : 0),
     }))
     .sort((a, b) => b.pre - a.pre)
-    .slice(0, Math.min(18, actions.length));
+    .slice(0, Math.min(budget.candidates, actions.length));
 
   let bestAction = candidates[0]!.action;
   let bestScore = -Infinity;
   for (const candidate of candidates) {
-    const preview = applyCandidate(state, candidate.action);
-    const beforeFinishEval = stateEval(preview.state, playerIndex);
+    const preview = applyCandidate(state, candidate.action, w);
+    const beforeFinishEval = stateEval(preview.state, playerIndex, w);
     finishTurn(preview.state);
-    rolloutGreedy(preview.state, 14);
+    rolloutGreedy(preview.state, budget.rolloutTurns, w);
 
-    let score = candidate.pre + beforeFinishEval * 0.24 + stateEval(preview.state, playerIndex) * 0.58;
+    let score = candidate.pre + beforeFinishEval * 0.24 + stateEval(preview.state, playerIndex, w) * w.mixAfter;
     if (preview.state.ended && winnerId(preview.state) === playerIndex) score += 10_000;
     if (rng) score += rng.next() * 0.001;
 
@@ -398,7 +416,7 @@ export function chooseStrongTurn(
     }
   }
 
-  const preview = applyCandidate(state, bestAction);
+  const preview = applyCandidate(state, bestAction, w);
   return { action: bestAction, evolution: preview.evolution };
 }
 

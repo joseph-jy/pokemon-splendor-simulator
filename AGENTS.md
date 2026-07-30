@@ -31,7 +31,7 @@
  - UI는 **Vanilla TS 권장**(단일 HTML 크기 최소화; React 런타임 정적 분량 회피). React도 기술적으로 가능.
 
 ## 모듈 분리 (제약)
- `game`(순수 규칙 엔진) · `strategy`(AI 정책) · `simulator`(몬테카를로, game+strategy에만 의존) · `ui`(렌더링·입력) · `data`(정적 카드/볼 데이터). `simulator`는 `ui`를 의존하지 않아야 한다.
+ `game`(순수 규칙 엔진) · `strategy`(AI 정책) · `simulator`(몬테카를로, game+strategy에만 의존) · `ui`(렌더링·입력) · `data`(정적 카드/볼 데이터) · `tuning`(자기대국 아레나, game+strategy에만 의존 — 브라우저 번들에 포함되지 않음). `simulator`·`tuning`은 `ui`를 의존하지 않아야 한다.
 
 ## 이미지 리소스
  이미지는 `assets/<단계>/<romanized>.png` 경로 규칙으로 저장. 파일명이 곧 식별자이며 `data` 모듈이 직접 참조. 상세 규칙·매니페스트·romanization 매핑은 [assets/ASSETS.md](assets/ASSETS.md) 참조. 디렉토리: `balls/` · `rare/` · `stage1/` · `stage2/` · `stage3/` · `ui/`.
@@ -39,4 +39,5 @@
 ## 참고 문서
  - [GAME.md](GAME.md) — 게임 규칙·카드 목록·용어.
 - [STRATEGY.md](STRATEGY.md) — AI 전략 정의 + 사용자 기본 정책(플레이아웃용).
+ - [AI_PLAN.md](AI_PLAN.md) — AI 강화 로드맵(자기대국 튜닝 → MCTS → 신경망) + 치트 모드 계획.
  - [assets/ASSETS.md](assets/ASSETS.md) — 이미지 리소스 규칙·매니페스트.

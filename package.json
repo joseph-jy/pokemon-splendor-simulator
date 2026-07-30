@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tune": "vite-node scripts/tune.ts --",
+    "tune:bench": "vite-node scripts/tune.ts -- --bench"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
