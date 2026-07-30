@@ -799,6 +799,49 @@ button, input, select, textarea {
   padding-top: 6px;
 }
 
+/* 치트 모드 추천 수 패널 (?cheat=1) */
+.cheat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(162,93,158,0.55);
+  border-radius: 8px;
+  background: rgba(162,93,158,0.12);
+}
+.cheat-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e9b8e4;
+  letter-spacing: 0.02em;
+}
+.cheat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+.cheat-rank {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(162,93,158,0.45);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cheat-desc { flex: 1; min-width: 0; }
+.cheat-meta {
+  flex: none;
+  font-size: 0.68rem;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
 /* "나" 패널 하단 피드백 (획득 불가 / 진화 가능 메시지) */
 .my-feedback {
   display: flex;

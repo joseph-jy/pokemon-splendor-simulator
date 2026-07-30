@@ -8,7 +8,7 @@ import { legalEvolutions, legalMainActions, type MainAction, type Evolution } fr
 import { applyMainAction, applyEvolution, canApplyMainAction, finishTurn, winnerId, rankPlayers } from "@/game/engine";
 import { chooseStrongTurn } from "@/strategy/policy";
 import { serialize, type Snapshot } from "@/game/snapshot";
-import type { AiTurnRequest, AiTurnResponse, WorkerResponse } from "@/simulator/worker";
+import type { AiTurnRequest, AiTurnResponse, HintItem, HintRequest, HintResponse, WorkerResponse } from "@/simulator/worker";
 import { Rng } from "@/game/rng";
 import { COLOR_DISPLAY, MAX_RESERVED, MAX_BALLS_IN_HAND, PLAYER_COUNTS, ballSupplyFor } from "@/data/balls";
 import SimWorker from "@/simulator/worker?worker&inline";
@@ -23,6 +23,8 @@ const MC_N = 200;
 const AI_DELAY_MS = 450;
 /** AI 턴 MCTS 반복 수. 검증 매치(AI_PLAN.md 2단계) 조건과 동일 — Worker 에서 계산해 UI 비차단. */
 const AI_MCTS_ITERATIONS = 400;
+/** 치트 모드 추천 수 개수. */
+const CHEAT_TOP_N = 3;
 const MASTER_BALL_SPEND_CONFIRM = "이 카드를 구입하면 마스터볼이 소모됩니다. 계속하시겠습니까?";
 const AI_NAME_CANDIDATES = [
   "리바이", "엘빈", "에렌", "미카사", "라이너", "애니", "지크", "피크", "아르민",
@@ -52,6 +54,12 @@ export class Controller {
   private probSeed = 1;
   private aiTurnRequestSeq = 0;
   private activeAiTurnRequestId = 0;
+  /** 치트 모드(?cheat=1). 사람 차례에 MCTS 추천 수를 표시한다. */
+  private cheatEnabled = false;
+  private hintRequestSeq = 0;
+  private activeHintRequestId = 0;
+  private hints: HintItem[] | null = null;
+  private hintsPending = false;
   private aiLog: string[] = [];
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
@@ -63,10 +71,17 @@ export class Controller {
 
   constructor(root: HTMLElement) {
     this.root = root;
+    this.cheatEnabled =
+      typeof location !== "undefined" &&
+      new URLSearchParams(location.search).get("cheat") === "1";
     this.worker = new SimWorker();
     this.worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
       if (e.data.kind === "aiturn") {
         this.onAiTurnComputed(e.data);
+        return;
+      }
+      if (e.data.kind === "hint") {
+        this.onHintComputed(e.data);
         return;
       }
       if (e.data.requestId !== this.activeWinRateRequestId) return;
@@ -95,6 +110,9 @@ export class Controller {
     this.winRatesStale = true;
     this.activeWinRateRequestId = ++this.winRateRequestSeq;
     this.activeAiTurnRequestId = 0; // 이전 게임의 Worker AI 응답 무효화
+    this.activeHintRequestId = 0;
+    this.hints = null;
+    this.hintsPending = false;
     this.probSeed = (Math.random() * 1e9) | 0;
     this.aiLog = [];
     this.ballPickColors = [];
@@ -139,6 +157,7 @@ export class Controller {
       this.ballPickColors = [];
       this.ballPickActive = false;
       this.setMsg({ kind: "info", text: "내 차례 — 행동을 선택하세요." });
+      if (this.cheatEnabled) this.requestHint();
       this.render();
     } else {
       this.phase = "ai";
@@ -188,9 +207,40 @@ export class Controller {
   }
 
   private advance(): void {
+    this.hints = null;
+    this.hintsPending = false;
+    this.activeHintRequestId = 0;
     finishTurn(this.state);
     this.requestWinProb();
     this.startTurn();
+  }
+
+  // ── Cheat mode (?cheat=1) ──
+
+  /** 사람 차례 시작 시 MCTS 추천 수를 Worker 에 요청. */
+  private requestHint(): void {
+    const requestId = ++this.hintRequestSeq;
+    this.activeHintRequestId = requestId;
+    this.hints = null;
+    this.hintsPending = true;
+    const req: HintRequest = {
+      kind: "hint",
+      requestId,
+      snapshot: serialize(this.state),
+      seed: (Math.random() * 0x7fffffff) | 0,
+      iterations: AI_MCTS_ITERATIONS,
+      topN: CHEAT_TOP_N,
+    };
+    this.worker.postMessage(req);
+  }
+
+  private onHintComputed(msg: HintResponse): void {
+    if (msg.requestId !== this.activeHintRequestId) return; // 지난 턴/게임의 응답
+    this.activeHintRequestId = 0;
+    this.hintsPending = false;
+    if (this.phase !== "human-action" || this.state.ended) return;
+    this.hints = msg.hints;
+    this.render();
   }
 
   // ── AI log ──
@@ -201,21 +251,22 @@ export class Controller {
   }
 
   private describeAction(playerIdx: number, action: MainAction): string {
+    return `${this.playerName(playerIdx)}: ${this.actionText(action)}`;
+  }
+
+  /** 플레이어명 없는 행동 설명(치트 패널·AI 로그 공용). */
+  private actionText(action: MainAction): string {
     switch (action.type) {
-      case "acquire": {
-        const card = cardOf(action.cardId);
-        return `${this.playerName(playerIdx)}: ${card.name} 획득`;
-      }
-      case "reserve": {
-        const card = cardOf(action.cardId);
-        return `${this.playerName(playerIdx)}: ${card.name} 보관`;
-      }
+      case "acquire":
+        return `${cardOf(action.cardId).name} 획득`;
+      case "reserve":
+        return `${cardOf(action.cardId).name} 보관`;
       case "take3":
-        return `${this.playerName(playerIdx)}: ${action.colors.map((c) => COLOR_DISPLAY[c]).join("+")} 획득`;
+        return `${action.colors.map((c) => COLOR_DISPLAY[c]).join("+")} 획득`;
       case "take2":
-        return `${this.playerName(playerIdx)}: ${COLOR_DISPLAY[action.color]} 2개 획득`;
+        return `${COLOR_DISPLAY[action.color]} 2개 획득`;
       case "reserveBlind":
-        return `${this.playerName(playerIdx)}: ${action.tier}단계 더미 보관`;
+        return `${action.tier}단계 더미 보관`;
     }
   }
 
@@ -848,9 +899,40 @@ export class Controller {
     return panel;
   }
 
+  /** 치트 모드 추천 수 패널(?cheat=1, 사람 차례 한정). */
+  private buildCheatPanel(): HTMLElement {
+    const panel = el("div", { class: "cheat-panel" });
+    panel.append(el("div", { class: "cheat-title" }, ["🃏 치트 — MCTS 추천 수"]));
+    if (this.hintsPending || !this.hints) {
+      panel.append(el("div", { class: "cheat-row text-xs opacity-60" }, ["계산 중…"]));
+      return panel;
+    }
+    if (this.hints.length === 0) {
+      panel.append(el("div", { class: "cheat-row text-xs opacity-60" }, ["추천 없음"]));
+      return panel;
+    }
+    const totalVisits = this.hints.reduce((a, h) => a + h.visits, 0);
+    this.hints.forEach((h, i) => {
+      const share = totalVisits > 0 ? Math.round((h.visits / totalVisits) * 100) : 0;
+      panel.append(el("div", { class: "cheat-row" }, [
+        el("span", { class: "cheat-rank" }, [`${i + 1}`]),
+        el("span", { class: "cheat-desc" }, [this.actionText(h.action)]),
+        el("span", { class: "cheat-meta", title: "탐색 선호도(방문 비중) · 기대 가치(0~100)" }, [
+          `선호 ${share}% · 가치 ${Math.round(h.value * 100)}`,
+        ]),
+      ]));
+    });
+    return panel;
+  }
+
   /** "나" 패널 하단에 표시되는 메시지 + 진화 버튼 블록. */
   private renderMyActionFeedback(): HTMLElement {
     const wrap = el("div", { class: "my-feedback" });
+
+    // Cheat mode: 추천 수 패널
+    if (this.cheatEnabled && this.phase === "human-action" && !this.state.ended) {
+      wrap.append(this.buildCheatPanel());
+    }
 
     // Message
     if (this.msg.text && this.phase !== "ai") {

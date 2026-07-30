@@ -28,7 +28,17 @@ export interface AiTurnRequest {
   iterations: number;
 }
 
-export type WorkerRequest = SimRequest | AiTurnRequest;
+/** 치트 모드 추천 수 요청(?cheat=1): 사람 차례에 MCTS 루트 통계 상위 topN 반환. */
+export interface HintRequest {
+  kind: "hint";
+  requestId: number;
+  snapshot: Snapshot;
+  seed: number;
+  iterations: number;
+  topN: number;
+}
+
+export type WorkerRequest = SimRequest | AiTurnRequest | HintRequest;
 
 export interface SimResponse extends WinRates {
   kind: "winrate";
@@ -41,11 +51,40 @@ export interface AiTurnResponse {
   pick: { action: MainAction; evolution: Evolution | null } | null;
 }
 
-export type WorkerResponse = SimResponse | AiTurnResponse;
+export interface HintItem {
+  action: MainAction;
+  visits: number;
+  /** 행동 주체 관점 평균 보상 ∈ [0,1]. */
+  value: number;
+}
+
+export interface HintResponse {
+  kind: "hint";
+  requestId: number;
+  hints: HintItem[];
+}
+
+export type WorkerResponse = SimResponse | AiTurnResponse | HintResponse;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = (e: MessageEvent<WorkerRequest>) => {
+  if (e.data.kind === "hint") {
+    const { requestId, snapshot, seed, iterations, topN } = e.data;
+    const state = deserialize(snapshot);
+    const result = chooseMctsTurn(state, new Rng(seed), WEIGHTS, { ...DEFAULT_MCTS, iterations });
+    const msg: HintResponse = {
+      kind: "hint",
+      requestId,
+      hints: (result?.stats ?? []).slice(0, topN).map((s) => ({
+        action: s.action,
+        visits: s.visits,
+        value: s.value,
+      })),
+    };
+    ctx.postMessage(msg);
+    return;
+  }
   if (e.data.kind === "aiturn") {
     const { requestId, snapshot, seed, iterations } = e.data;
     const state = deserialize(snapshot);
