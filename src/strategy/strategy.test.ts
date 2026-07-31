@@ -4,8 +4,9 @@ import { legalMainActions } from "@/game/actions";
 import { applyMainAction, applyEvolution, finishTurn, winnerId, rankPlayers } from "@/game/engine";
 import { Rng } from "@/game/rng";
 import {
-  chooseTurn, chooseStrongTurn, cardValue, actionValue, goalSet, bestEvolution,
+  chooseTurn, chooseStrongTurn, cardValue, actionValue, goalSet, bestEvolution, blockValue,
 } from "@/strategy/policy";
+import { WEIGHTS } from "@/strategy/weights";
 import { CARDS } from "@/data/cards";
 import type { CardDef, Color } from "@/game/types";
 
@@ -90,6 +91,41 @@ describe("strategy basics", () => {
     expect(s.players[1]!.balls).toEqual(before.player.balls);
     expect(s.players[1]!.reserved).toEqual(before.player.reserved);
     expect(s.players[1]!.scored).toEqual(before.player.scored);
+  });
+
+  it("blockValue: 기본은 상대가 지금 살 수 있는 카드만 견제 대상", () => {
+    const s = createGame(1, 2);
+    s.currentPlayer = 0;
+    const pidgey = findCard((c) => c.name === "구구" && (c.cost.pink ?? 0) === 3);
+    s.board[1] = [pidgey.id];
+    const opp = s.players[1]!;
+
+    opp.balls = { red: 0, blue: 0, black: 0, pink: 3, yellow: 0, gold: 0 };
+    const nowBuyable = blockValue(s, 0, { type: "reserve", cardId: pidgey.id }, WEIGHTS);
+    expect(nowBuyable).toBeGreaterThan(0);
+
+    opp.balls = { red: 0, blue: 0, black: 0, pink: 1, yellow: 0, gold: 0 };
+    expect(blockValue(s, 0, { type: "reserve", cardId: pidgey.id }, WEIGHTS)).toBe(0);
+  });
+
+  it("blockValue: blockNear>0 이면 곧 살 수 있는 카드도 선제 견제(부족분에 반비례)", () => {
+    const s = createGame(1, 2);
+    s.currentPlayer = 0;
+    const pidgey = findCard((c) => c.name === "구구" && (c.cost.pink ?? 0) === 3);
+    s.board[1] = [pidgey.id];
+    const opp = s.players[1]!;
+    const near = { ...WEIGHTS, blockNear: 1, blockNearWindow: 2 };
+
+    opp.balls = { red: 0, blue: 0, black: 0, pink: 2, yellow: 0, gold: 0 }; // 1개 부족
+    const short1 = blockValue(s, 0, { type: "reserve", cardId: pidgey.id }, near);
+    opp.balls = { red: 0, blue: 0, black: 0, pink: 1, yellow: 0, gold: 0 }; // 2개 부족
+    const short2 = blockValue(s, 0, { type: "reserve", cardId: pidgey.id }, near);
+    opp.balls = { red: 0, blue: 0, black: 0, pink: 0, yellow: 0, gold: 0 }; // 3개 부족 = 창 밖
+    const short3 = blockValue(s, 0, { type: "reserve", cardId: pidgey.id }, near);
+
+    expect(short1).toBeGreaterThan(short2);
+    expect(short2).toBeGreaterThan(0);
+    expect(short3).toBe(0);
   });
 
   it("chooseStrongTurn: 동일 상태·동일 RNG → 동일 선택", () => {

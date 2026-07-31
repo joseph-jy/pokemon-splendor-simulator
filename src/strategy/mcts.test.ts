@@ -60,6 +60,25 @@ describe("mcts", () => {
     expect((pick!.action as { cardId: string }).cardId).toBe(dragonite.id);
   });
 
+  it("모든 플레이어가 막힌 교착 상태에서도 종료(스택 오버플로 회귀)", () => {
+    // 볼 한도 10 + 보관 한도 + 지불 불가가 겹치면 아무도 행동할 수 없다.
+    // 예전에는 walk() 의 강제 패스 경로가 깊이를 무시해 무한 재귀로 죽었다.
+    const s = createGame(1, 2);
+    s.decks[1] = []; s.decks[2] = []; s.decks[3] = [];
+    s.decks.rare = []; s.decks.legendary = [];
+    const charizard = findCard((c) => c.name === "리자몽"); // black7 / yellow3
+    s.board[1] = []; s.board[2] = []; s.board[3] = [charizard.id];
+    s.board.rare = []; s.board.legendary = [];
+    // 둘 다 볼 10개 보유(더 못 집음) + 리자몽 지불 불가 → 루트만 "보관" 1수 가능.
+    s.players[0]!.balls = { red: 0, blue: 0, black: 0, pink: 0, yellow: 10, gold: 0 };
+    s.players[1]!.balls = { red: 0, blue: 0, black: 0, pink: 10, yellow: 0, gold: 0 };
+    s.currentPlayer = 0;
+
+    const pick = chooseMctsTurn(s, new Rng(1), undefined, { ...FAST, iterations: 12, maxDepth: 4 });
+    expect(pick).not.toBeNull();
+    expect(pick!.action.type).toBe("reserve");
+  });
+
   it("루트 통계: 방문 수 내림차순 + 가치 범위", () => {
     const s = createGame(55, 4);
     const pick = chooseMctsTurn(s, new Rng(1), undefined, FAST);

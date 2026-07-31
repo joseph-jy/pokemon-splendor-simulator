@@ -148,8 +148,11 @@ function walk(
   const acting = s.currentPlayer;
   const avail = candidateActions(s, w, opts.maxChildren);
   if (avail.length === 0) {
-    // 합법 행동 없음(드묾): 강제 패스 후 계속.
+    // 합법 행동 없음(볼 한도 + 보관 한도 + 지불 불가가 겹칠 때): 강제 패스 후 계속.
+    // 모든 플레이어가 동시에 막히면 게임이 진행되지 않으므로 반드시 깊이로 끊는다
+    // (2·3인전은 은행이 자주 말라 실제로 발생 — 예전에는 스택 오버플로로 죽었다).
     finishTurn(s);
+    if (depth + 1 >= opts.maxDepth) return rewards(s);
     return walk(node, s, depth + 1, rng, w, opts);
   }
 

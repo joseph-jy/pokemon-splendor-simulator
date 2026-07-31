@@ -232,6 +232,13 @@ function legalMainActionsForPlayer(state: GameState, playerIndex: number): MainA
   }
 }
 
+/**
+ * rollout 용 greedy 정책의 견제 반영 비율. `w.block` 에 곱해 쓴다.
+ * 하드코딩 상수였던 0.25 를 당시 기본값 block=0.65 기준 비율로 환산한 값이라,
+ * 가중치가 튜닝돼도 "탐색 정책보다 약하게 견제한다"는 관계가 유지된다.
+ */
+const GREEDY_BLOCK_RATIO = 0.25 / 0.65;
+
 function cardPressure(player: PlayerState, card: CardDef, w: StrategyWeights): number {
   let v = card.points * 3;
   let rawNeed = 0;
@@ -295,7 +302,27 @@ function stateEval(state: GameState, playerIndex: number, w: StrategyWeights): n
   return v;
 }
 
-function blockValue(state: GameState, playerIndex: number, action: MainAction): number {
+/** 이 카드를 사기까지 부족한 볼 개수(마스터볼로 메운 뒤 남는 부족분). 0 = 지금 구매 가능. */
+function ballShortfall(p: PlayerState, card: CardDef): number {
+  const cost = discountedCost(card, p.bonus);
+  let need = 0;
+  for (const c of COLORS) need += Math.max(0, (cost[c] ?? 0) - p.balls[c]);
+  if (isNoble(card.tier)) need += 1; // 희귀/전설: 마스터볼 1개 필수
+  return Math.max(0, need - p.balls.gold);
+}
+
+/**
+ * 견제 가치: 이 카드를 내가 가져가면 상대가 잃는 것(STRATEGY.md §4).
+ * 기본은 "상대가 지금 당장 살 수 있는 카드"만 위협으로 본다.
+ * `w.blockNear > 0` 이면 아직 못 사지만 볼 `blockNearWindow` 개 이내로 다가온
+ * 카드까지 **선제 견제** 대상에 넣고, 부족분에 반비례해 가치를 깎는다.
+ */
+export function blockValue(
+  state: GameState,
+  playerIndex: number,
+  action: MainAction,
+  w: StrategyWeights = WEIGHTS,
+): number {
   if (action.type !== "reserve" && action.type !== "acquire") return 0;
   if (!boardCardIds(state).includes(action.cardId)) return 0;
 
@@ -303,15 +330,14 @@ function blockValue(state: GameState, playerIndex: number, action: MainAction): 
   let best = 0;
   for (const opponent of state.players) {
     if (opponent.id === playerIndex) continue;
-    const canOpponentAcquire = legalMainActionsForPlayer(state, opponent.id).some(
-      (candidate) => candidate.type === "acquire" && candidate.cardId === action.cardId,
-    );
-    if (!canOpponentAcquire) continue;
+    const shortfall = ballShortfall(opponent, card);
+    if (shortfall > 0 && (w.blockNear <= 0 || shortfall > w.blockNearWindow)) continue;
 
-    let v = card.points * 4 + 1.8;
-    if (isNextEvoStep(opponent, card)) v += 3;
-    if (isNoble(card.tier)) v += 2;
-    if (playerPoints(opponent) >= 12) v += card.points * 1.5;
+    let v = card.points * w.blockPts + w.blockBase;
+    if (isNextEvoStep(opponent, card)) v += w.blockEvo;
+    if (isNoble(card.tier)) v += w.blockNoble;
+    if (playerPoints(opponent) >= 12) v += card.points * w.blockLeader;
+    if (shortfall > 0) v *= w.blockNear / shortfall;
     best = Math.max(best, v);
   }
   return best;
@@ -338,7 +364,8 @@ function chooseGreedyTurn(state: GameState, w: StrategyWeights): { action: MainA
   let bestAction = actions[0]!;
   let bestScore = -Infinity;
   for (const action of actions) {
-    let score = actionValue(state, player, action, goal, w) + blockValue(state, state.currentPlayer, action) * 0.25;
+    let score = actionValue(state, player, action, goal, w)
+      + blockValue(state, state.currentPlayer, action, w) * w.block * GREEDY_BLOCK_RATIO;
     if (action.type === "acquire") {
       const card = cardOf(action.cardId);
       score += card.points * 0.9;
@@ -392,7 +419,7 @@ export function chooseStrongTurn(
       action,
       pre:
         actionValue(state, player, action, goal, w)
-        + blockValue(state, playerIndex, action) * w.block
+        + blockValue(state, playerIndex, action, w) * w.block
         + (action.type === "acquire" ? cardOf(action.cardId).points * 1.1 : 0),
     }))
     .sort((a, b) => b.pre - a.pre)

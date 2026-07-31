@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "docs:cardex": "vite-node scripts/gen-cardex.ts",
     "tune": "vite-node scripts/tune.ts --",
-    "tune:bench": "vite-node scripts/tune.ts -- --bench"
+    "tune:bench": "vite-node scripts/tune.ts -- --bench",
+    "eval:mcts": "vite-node scripts/eval-mcts.ts --",
+    "eval:players": "vite-node scripts/eval-players.ts --"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

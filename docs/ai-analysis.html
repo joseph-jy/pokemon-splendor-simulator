@@ -164,33 +164,38 @@
 <header class="hero">
   <span class="badge">포켓몬 스플렌더 시뮬레이터 · AI 기술 해설</span>
   <h1>이 게임의 AI는 어떻게<br>&ldquo;미래를 400번 살아보고&rdquo; 수를 둘까?</h1>
-  <p class="sub">MCTS 분석이 무엇인지, AI를 어떻게 훈련했는지, 그리고 사람에게도 통하는 승리 전략은 무엇인지 —<br>수식 없이, 그림과 도표로 설명합니다.</p>
+  <p class="sub">MCTS 분석이 무엇인지, AI를 어떻게 훈련했는지, 사람에게도 통하는 승리 전략은 무엇인지 —<br>그리고 2인·3인·4인이 왜 서로 다른 게임인지. 수식 없이, 그림과 도표로 설명합니다.</p>
 </header>
 
 <!-- ============================================================ -->
 <section id="summary">
-  <h2><span class="kicker">한눈에 보기</span>결론부터: 새 AI는 기존 AI보다 2.6배 더 이깁니다</h2>
+  <h2><span class="kicker">한눈에 보기</span>결론부터: 새 AI는 기존 AI보다 1.4배 더 이깁니다</h2>
   <p>
     4명이 겨루는 이 게임에서 실력이 모두 같다면 각자의 승률은 <strong>25%</strong>가 되어야 합니다.
-    그런데 새로 만든 <strong>MCTS AI</strong> 1명을 기존 AI 3명과 320판 붙여 보니, 승률이 <strong>65%</strong>가 나왔습니다.
-    네 자리 중 한 자리에 앉았을 뿐인데 세 판 중 두 판 가까이 이긴 셈입니다.
+    그런데 <strong>MCTS AI</strong> 1명을 기존 AI 3명과 640판 붙여 보니, 승률이 <strong>34%</strong>가 나왔습니다.
+    2인전·3인전에서도 같은 우위가 유지됩니다(<a href="#players">4부</a>).
+  </p>
+  <p class="note">
+    처음 측정한 배수는 <strong>2.5배</strong>(62.0%)였습니다. 그 뒤 비교 대상인 기존 AI 자체를 두 번 강화했기 때문에
+    (<a href="#blocking">5부의 견제 개선</a> + <a href="#training">2부의 재튜닝 성공</a>) 똑같은 MCTS의 배수가 1.4배로 내려갔습니다 —
+    AI가 약해진 게 아니라 <strong>상대가 강해진 것</strong>입니다. 이 문서는 그 과정을 시간순으로 그대로 남겼습니다.
   </p>
 
   <div class="hero-figure">
-    <div class="num">2.6배</div>
-    <div class="cap">기존 AI 대비 승률 (기대치 25% → 실측 65.0%)</div>
+    <div class="num">1.4배</div>
+    <div class="cap">현재 기존 AI 대비 승률 (기대치 25% → 실측 34.1%)</div>
   </div>
 
   <div class="tiles">
     <div class="tile">
       <div class="label">검증 대국 수</div>
-      <div class="value">320판</div>
-      <div class="delta">서로 다른 시드 2회 × 160판</div>
+      <div class="value">640판</div>
+      <div class="delta">서로 다른 시드 2개로 반복</div>
     </div>
     <div class="tile">
       <div class="label">MCTS AI 승률</div>
-      <div class="value">65.0%</div>
-      <div class="delta up">기대치 25% 대비 +40.0%p</div>
+      <div class="value">34.1%</div>
+      <div class="delta up">기대치 25% 대비 +9.1%p</div>
     </div>
     <div class="tile">
       <div class="label">한 수당 생각하는 미래</div>
@@ -462,52 +467,94 @@
        ③ <strong>숫자만 바꿔서는 한계.</strong> 기존 가중치는 이미 충분히 좋은 지점 근처였다. 더 큰 도약은 &ldquo;생각하는 구조&rdquo; 자체를 바꿔야 나온다 — 그것이 2단계.</p>
   </div>
 
-  <h3>2단계 — 탐색 구조 교체 (ISMCTS): 승률 2.6배</h3>
+  <h3>후일담 — 교훈 ③은 틀렸습니다</h3>
+  <p>
+    1년도 아니고 하루 뒤에 이 결론이 뒤집혔습니다.
+    교훈 ②를 <strong>실제로 고쳐서</strong>(튜닝 중 성적도 실전과 같은 전체 계산량으로 재고, 후보당 판수를 24판 → 96판으로 늘려서)
+    같은 CEM 튜닝을 다시 돌렸더니 — <strong>이번엔 새 시드 두 번 모두 통과했습니다.</strong>
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>라운드</th><th>1차 검증</th><th>새 시드 확증 ①</th><th>새 시드 확증 ②</th><th>판정</th></tr>
+    <tr><td>1 (2026-07-30)</td><td>31.7%</td><td colspan="2">27.4% (880판)</td><td>재현 실패</td></tr>
+    <tr><td>2 (2026-07-30)</td><td>29.4%</td><td colspan="2">26.5% (800판)</td><td>재현 실패</td></tr>
+    <tr>
+      <td><strong>3 (2026-07-31, 조건 수정)</strong></td>
+      <td>47.9%</td>
+      <td style="color:var(--good)"><strong>46.0% ±4.4%p</strong></td>
+      <td style="color:var(--good)"><strong>44.6% ±4.4%p</strong></td>
+      <td><strong>채택 ✓</strong></td>
+    </tr>
+  </table>
+  </div>
+  <p>
+    기대치 25%에 대해 <strong>45%</strong> — 즉 &ldquo;숫자만 바꿔서&rdquo;도 큰 도약이 가능했습니다.
+    막혀 있던 것은 알고리즘의 한계가 아니라 <strong>성적을 재는 방법</strong>이었습니다.
+    실패한 두 라운드에서 &ldquo;여기가 최적 근처다&rdquo;라고 결론 내린 것은, 사실 <strong>측정 잡음을 지형으로 착각한 것</strong>이었습니다.
+  </p>
+  <div class="card lesson">
+    <h4>그래서 진짜 교훈은</h4>
+    <p>
+      <strong>&ldquo;개선 여지가 없다&rdquo;는 결론은 측정을 고친 뒤에만 내릴 수 있습니다.</strong>
+      노이즈가 큰 측정으로는 &ldquo;효과 없음&rdquo;과 &ldquo;못 재고 있음&rdquo;이 똑같이 생겼습니다.
+      아래 2단계 이야기를 읽을 때도 이 점을 기억해 주세요 — MCTS는 여전히 더 강하지만,
+      그 격차는 처음 측정했던 것만큼 크지 않습니다.
+    </p>
+  </div>
+
+  <h3>2단계 — 탐색 구조 교체 (ISMCTS): 승률 2.5배</h3>
   <p>
     평가 기준은 그대로 두고, <strong>수를 고르는 방식</strong>을 1부에서 설명한 MCTS로 통째로 바꿨습니다.
     기존 AI가 &ldquo;한두 수 앞&rdquo;을 어림짐작했다면, 새 AI는 <strong>매 수마다 400개의 미래를 끝까지 살아보고</strong> 결정합니다.
-    이번엔 1단계의 교훈대로 서로 다른 시드로 두 번, 총 320판을 검증했습니다 — 그리고 두 번 모두 압도적이었습니다.
+    1단계의 교훈대로 서로 다른 시드로 <strong>세 번, 총 640판</strong>을 검증했고 — 세 번 모두 압도적이었습니다.
   </p>
 
   <figure class="chart card">
     <div class="scroll-x">
-    <svg viewBox="0 0 720 250" role="img" aria-label="승률 비교: 기존 AI 25%, ISMCTS 검증1 63.1%, 검증2 66.9%">
+    <svg viewBox="0 0 720 262" role="img" aria-label="4인전 승률 비교: 기존 AI 25%, ISMCTS 검증1 63.1%, 검증2 66.9%, 검증3 59.1%">
       <!-- 세로 그리드 0/20/40/60/80% -->
-      <line class="sv-grid" x1="150" y1="20" x2="150" y2="200"/>
-      <line class="sv-grid" x1="275" y1="20" x2="275" y2="200"/>
-      <line class="sv-grid" x1="400" y1="20" x2="400" y2="200"/>
-      <line class="sv-grid" x1="525" y1="20" x2="525" y2="200"/>
-      <line class="sv-grid" x1="650" y1="20" x2="650" y2="200"/>
-      <text class="sv-tick" x="150" y="220" text-anchor="middle">0%</text>
-      <text class="sv-tick" x="275" y="220" text-anchor="middle">20%</text>
-      <text class="sv-tick" x="400" y="220" text-anchor="middle">40%</text>
-      <text class="sv-tick" x="525" y="220" text-anchor="middle">60%</text>
-      <text class="sv-tick" x="650" y="220" text-anchor="middle">80%</text>
+      <line class="sv-grid" x1="150" y1="20" x2="150" y2="214"/>
+      <line class="sv-grid" x1="275" y1="20" x2="275" y2="214"/>
+      <line class="sv-grid" x1="400" y1="20" x2="400" y2="214"/>
+      <line class="sv-grid" x1="525" y1="20" x2="525" y2="214"/>
+      <line class="sv-grid" x1="650" y1="20" x2="650" y2="214"/>
+      <text class="sv-tick" x="150" y="234" text-anchor="middle">0%</text>
+      <text class="sv-tick" x="275" y="234" text-anchor="middle">20%</text>
+      <text class="sv-tick" x="400" y="234" text-anchor="middle">40%</text>
+      <text class="sv-tick" x="525" y="234" text-anchor="middle">60%</text>
+      <text class="sv-tick" x="650" y="234" text-anchor="middle">80%</text>
       <!-- 기존 AI 25% -->
-      <text class="sv-label" x="140" y="55" text-anchor="end">기존 AI (기준)</text>
-      <path fill="var(--bar-muted)" d="M150,40 H302.3 Q306.3,40 306.3,44 V58 Q306.3,62 302.3,62 H150 Z"/>
-      <text class="sv-val" x="314" y="55">25.0%</text>
+      <text class="sv-label" x="140" y="51" text-anchor="end">기존 AI (기준)</text>
+      <path fill="var(--bar-muted)" d="M150,36 H302.3 Q306.3,36 306.3,40 V54 Q306.3,58 302.3,58 H150 Z"/>
+      <text class="sv-val" x="314" y="51">25.0%</text>
       <!-- 시드7 63.1 ±7.5 -->
-      <text class="sv-label" x="140" y="115" text-anchor="end">ISMCTS 검증①</text>
-      <path fill="var(--series-1)" d="M150,100 H540.4 Q544.4,100 544.4,104 V118 Q544.4,122 540.4,122 H150 Z"/>
-      <line x1="497.5" y1="111" x2="591.3" y2="111" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <line x1="497.5" y1="106" x2="497.5" y2="116" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <line x1="591.3" y1="106" x2="591.3" y2="116" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <text class="sv-val" x="599" y="115">63.1%</text>
+      <text class="sv-label" x="140" y="99" text-anchor="end">ISMCTS 검증①</text>
+      <path fill="var(--series-1)" d="M150,84 H540.4 Q544.4,84 544.4,88 V102 Q544.4,106 540.4,106 H150 Z"/>
+      <line x1="497.5" y1="95" x2="591.3" y2="95" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="497.5" y1="90" x2="497.5" y2="100" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="591.3" y1="90" x2="591.3" y2="100" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <text class="sv-val" x="599" y="99">63.1%</text>
       <!-- 시드99991 66.9 ±7.3 -->
-      <text class="sv-label" x="140" y="175" text-anchor="end">ISMCTS 검증②</text>
-      <path fill="var(--series-1)" d="M150,160 H564.1 Q568.1,160 568.1,164 V178 Q568.1,182 564.1,182 H150 Z"/>
-      <line x1="522.5" y1="171" x2="613.8" y2="171" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <line x1="522.5" y1="166" x2="522.5" y2="176" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <line x1="613.8" y1="166" x2="613.8" y2="176" stroke="var(--ink-2)" stroke-width="1.5"/>
-      <text class="sv-val" x="621" y="175">66.9%</text>
+      <text class="sv-label" x="140" y="147" text-anchor="end">ISMCTS 검증②</text>
+      <path fill="var(--series-1)" d="M150,132 H564.1 Q568.1,132 568.1,136 V150 Q568.1,154 564.1,154 H150 Z"/>
+      <line x1="522.5" y1="143" x2="613.8" y2="143" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="522.5" y1="138" x2="522.5" y2="148" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="613.8" y1="138" x2="613.8" y2="148" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <text class="sv-val" x="621" y="147">66.9%</text>
+      <!-- 시드991733 59.1 ±5.4 (320판) -->
+      <text class="sv-label" x="140" y="195" text-anchor="end">ISMCTS 검증③</text>
+      <path fill="var(--series-1)" d="M150,180 H515.4 Q519.4,180 519.4,184 V198 Q519.4,202 515.4,202 H150 Z"/>
+      <line x1="485.6" y1="191" x2="553.1" y2="191" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="485.6" y1="186" x2="485.6" y2="196" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <line x1="553.1" y1="186" x2="553.1" y2="196" stroke="var(--ink-2)" stroke-width="1.5"/>
+      <text class="sv-val" x="561" y="195">59.1%</text>
       <!-- 축 -->
-      <line class="sv-axis" x1="150" y1="20" x2="150" y2="200"/>
+      <line class="sv-axis" x1="150" y1="20" x2="150" y2="214"/>
     </svg>
     </div>
     <figcaption>
-      ISMCTS AI 1명 vs 기존 AI 3명, 각 160판. 짧은 가로선은 오차 범위(95% 신뢰구간)로,
-      오차를 감안해도 기준치 25%와 비교할 수 없이 높다. 두 검증 합산 <strong>65.0% ±5.2%p (208승/320판)</strong>.
+      4인전, ISMCTS AI 1명 vs 기존 AI 3명. 짧은 가로선은 오차 범위(95% 신뢰구간)로,
+      오차를 감안해도 기준치 25%와 비교할 수 없이 높다. 세 검증 합산 <strong>62.0% ±3.8%p (397승/640판)</strong>.
     </figcaption>
     <details>
       <summary>표로 보기</summary>
@@ -516,7 +563,8 @@
         <tr><td>기존 AI (이론 기대치)</td><td>25.0%</td><td>—</td><td>50</td></tr>
         <tr><td>ISMCTS 검증① (시드 7)</td><td>63.1% ±7.5%p</td><td>101/160</td><td>81.9</td></tr>
         <tr><td>ISMCTS 검증② (시드 99991)</td><td>66.9% ±7.3%p</td><td>107/160</td><td>82.7</td></tr>
-        <tr><td><strong>합산</strong></td><td><strong>65.0% ±5.2%p</strong></td><td>208/320</td><td>—</td></tr>
+        <tr><td>ISMCTS 검증③ (시드 991733)</td><td>59.1% ±5.4%p</td><td>189/320</td><td>78.5</td></tr>
+        <tr><td><strong>합산</strong></td><td><strong>62.0% ±3.8%p</strong></td><td>397/640</td><td>—</td></tr>
       </table>
     </details>
   </figure>
@@ -524,9 +572,30 @@
   <div class="card">
     <p style="margin-top:0;">
       📌 <strong>이 실험이 주는 한 줄 요약:</strong>
-      같은 평가 기준이라도 <strong>&ldquo;얼마나 깊고 넓게 내다보느냐&rdquo;</strong>가 실력을 좌우한다.
-      세부 숫자 튜닝(1단계)은 소득이 없었지만, 내다보는 구조를 바꾸자(2단계) 승률이 2.6배가 됐다.
+      같은 평가 기준이라도 <strong>&ldquo;얼마나 깊고 넓게 내다보느냐&rdquo;</strong>가 실력을 좌우한다 —
+      내다보는 구조를 바꾸자(2단계) 당시 AI 대비 승률이 2.5배가 됐다.
+      다만 <strong>&ldquo;숫자 튜닝은 소득이 없다&rdquo;는 당시 결론은 나중에 틀린 것으로 드러났다</strong>(위 후일담).
       지금 여러분이 게임에서 상대하는 AI 3명이 모두 이 ISMCTS로 수를 두고 있다.
+    </p>
+  </div>
+  <div class="card lesson">
+    <h4>⚠️ 위 62.0%는 &ldquo;2026-07-30 시점의 기존 AI&rdquo; 상대 수치입니다</h4>
+    <p>
+      그 뒤 기존 AI를 두 번 강화했습니다 — <a href="#blocking">5부의 견제 개선</a>, 그리고 위 후일담의 <strong>재튜닝 성공</strong>.
+      비교 대상이 강해지자 <strong>똑같은 MCTS</strong>의 4인전 승률이 이렇게 내려갔습니다:
+    </p>
+    <div class="scroll-x">
+    <table>
+      <tr><th>상대(기존 AI)의 상태</th><th>MCTS 4인 승률</th><th>배수</th></tr>
+      <tr><td>2단계 검증 당시</td><td>62.0% ±3.8%p (397/640)</td><td>2.48배</td></tr>
+      <tr><td>+ 견제 개선(5부)</td><td>56.4% ±3.8%p (361/640)</td><td>2.26배</td></tr>
+      <tr><td><strong>+ 재튜닝까지(현재)</strong></td><td><strong>34.1% ±3.7%p (218/640)</strong></td><td><strong>1.36배</strong></td></tr>
+    </table>
+    </div>
+    <p>
+      MCTS는 세 측정에서 동일한 알고리즘입니다. 즉 이 하락은 <strong>MCTS가 약해진 게 아니라 상대가 강해진 것</strong>이고,
+      두 번의 개선이 실제로 효과가 있었다는 독립적인 증거입니다.
+      그래도 MCTS는 여전히 기대치 25%를 크게 웃돕니다(하한 30.4%).
     </p>
   </div>
 </section>
@@ -626,7 +695,402 @@
       누군가 18점에 도달해도 게임은 그 라운드가 끝날 때까지 이어집니다 — 즉 <strong>모두에게 마지막 한 턴</strong>이 남습니다.
       한 턴에 벌 수 있는 최대 점수는 약 <strong>7점</strong>(카드 획득 + 동시 진화). 따라서 점수 차가 7점 이내라면 아직 역전 가능권입니다.
       또 하나 — 총점이 같으면 <strong>진화 카드 수 → 획득 카드 수</strong> 순으로 승부가 갈리니, 종반에는 점수와 진화 횟수를 함께 챙기세요.
-      상대의 진화 재료 카드를 먼저 사서 막는 &ldquo;블로킹&rdquo;은 강력하지만 내 턴을 소모하므로, <strong>상대가 12점 이상으로 앞서갈 때만</strong> 쓰는 게 정석입니다.
+      상대 카드를 먼저 사서 막는 &ldquo;블로킹&rdquo;은 오래된 정석이지만, 실제로 언제 이득인지는 인원수에 따라 다릅니다 —
+      <a href="#blocking">5부에서 실험으로 따로 다룹니다</a>.
+    </p>
+  </div>
+
+  <p class="note">
+    ⚠️ 위 5가지는 <strong>4인전 실험</strong>을 기준으로 정리한 것입니다.
+    인원이 2·3인으로 줄면 규칙(볼 공급)과 최적 전략이 함께 달라지므로 <a href="#players">4부</a>를 이어서 보세요.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="players">
+  <h2><span class="kicker">4부 · 인원수별 차이</span>2인 · 3인 · 4인은 &ldquo;같은 게임&rdquo;이 아니다</h2>
+
+  <p>
+    앞의 5가지 원칙은 <strong>4인전 실험</strong>에서 나온 결과입니다.
+    그런데 탐색 알고리즘(MCTS)은 인원수와 무관하게 그대로 쓸 수 있는 반면,
+    <strong>이기는 방법은 인원수에 따라 꽤 달라집니다</strong>. 이 장은 그 차이를 규칙과 측정으로 나눠 정리합니다.
+  </p>
+
+  <h3>규칙에서 바뀌는 것은 &ldquo;컬러 볼 공급&rdquo; 딱 하나다</h3>
+  <p>
+    인원을 바꿀 때 실제로 달라지는 규칙은 <strong>컬러 볼 공급량</strong>뿐입니다.
+    카드 90장, 마스터볼 5개, 목표 18점, 보유 볼 한도 10개는 인원과 무관하게 고정입니다.
+    나머지 차이는 전부 이 한 가지 비대칭에서 파생됩니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>항목</th><th>2인</th><th>3인</th><th>4인</th><th>왜 중요한가</th></tr>
+    <tr><td>색당 컬러 볼</td><td><strong>4개</strong></td><td><strong>5개</strong></td><td><strong>7개</strong></td><td>한 색을 깊게 파는 카드의 지불 상한</td></tr>
+    <tr><td>컬러 볼 총량</td><td>20개</td><td>25개</td><td>35개</td><td>보유 한도(10개)와 비교 → 2인은 두 명이 은행을 비울 수 있다</td></tr>
+    <tr><td>1인당 마스터볼</td><td>2.5개</td><td>1.7개</td><td><strong>1.25개</strong></td><td>희귀·전설은 마스터볼 필수 → 4인에서 병목</td></tr>
+    <tr><td>&ldquo;같은 색 2개&rdquo; 가능 조건<br><span class="muted">공급이 4개 이상 남아야 함</span></td><td>손도 안 댄 색만</td><td>1개까지 빠진 색</td><td>3개까지 빠진 색</td><td>2인에서 이 행동은 사실상 선착순 자원</td></tr>
+    <tr><td>한 색 전량 보유(색 봉쇄)</td><td><strong>쉽다</strong> (4개 = 한도의 40%)</td><td>어렵다 (5개)</td><td>거의 불가 (7개 = 한도의 70%)</td><td>2인에서만 실용적인 &ldquo;색 봉쇄&rdquo; 전술</td></tr>
+  </table>
+  </div>
+
+  <h3>가장 큰 차이: 2인에서는 3단계 카드를 &ldquo;볼만 모아서&rdquo; 살 수 없다</h3>
+  <p>
+    3단계 카드의 비용은 한 색에 몰려 있습니다. 리자몽은 <strong>블랙 7개</strong>, 이상해꽃은 <strong>레드 7개</strong>.
+    그런데 2인전의 은행에는 색당 <strong>4개</strong>밖에 없습니다. 즉 2인에서 3단계 카드는
+    <strong>카드 보너스로 할인하지 않으면 물리적으로 지불이 불가능</strong>합니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>등급</th><th>평균 최대 단색 비용</th><th>보너스 0으로 구매 불가한 카드 수</th></tr>
+    <tr><td>1단계 (35장)</td><td>2.4</td><td>2인 0장 · 3인 0장 · 4인 0장</td></tr>
+    <tr><td>2단계 (30장)</td><td>4.2</td><td><strong>2인 10장</strong> · 3인 5장 · 4인 0장</td></tr>
+    <tr><td>3단계 (15장)</td><td>6.0</td><td><strong>2인 15장(전부)</strong> · <strong>3인 10장</strong> · 4인 0장</td></tr>
+  </table>
+  </div>
+  <p class="note">
+    3단계 카드의 총비용은 9~10개로 보유 한도 10개와 거의 같습니다.
+    즉 4인전이라 해도 &ldquo;보너스 없이 3단계 구매&rdquo;는 손에 볼을 정확히 10개 채워야 하는 극단적 플랜입니다.
+    3인전에서는 단색 5개짜리 5장(피죤투·니드퀸·우츠보트·강챙이·라플레시아)만 남고, 2인전에서는 15장 전부가 사라집니다.
+  </p>
+  <div class="card lesson">
+    <h4>사람이 쓸 수 있는 결론</h4>
+    <p>
+      <strong>인원이 적을수록 초반 1단계 카드(0점 포함)로 보너스를 쌓는 준비 구간이 길어야 합니다.</strong>
+      2인전에서 리자몽(5점)을 노린다면 블랙 보너스 3개를 먼저 확보해야 비로소 지불이 성립합니다.
+      반대로 4인전에서는 볼을 모아 3단계로 직행하는 속공 플랜이 이론적으로 성립합니다.
+    </p>
+  </div>
+
+  <h3>실제로 그렇게 흘러가는가 — 자기대국 1,220판 측정</h3>
+  <p>
+    같은 AI끼리 2인 400판 · 3인 420판 · 4인 400판을 돌려 게임 진행 자체를 기록했습니다.
+    위에서 규칙으로 예측한 차이가 그대로 나타납니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>측정 항목</th><th>2인</th><th>3인</th><th>4인</th><th>읽는 법</th></tr>
+    <tr>
+      <td><strong>볼을 3색 다 못 집은 턴</strong><br><span class="muted">1~2색만 가져간 비율</span></td>
+      <td><strong>22.0%</strong></td><td>20.9%</td><td>13.3%</td>
+      <td>2·3인은 은행이 말라 원하는 만큼 못 집는다</td>
+    </tr>
+    <tr>
+      <td>&ldquo;같은 색 2개&rdquo; 사용률</td>
+      <td>2.2%</td><td>2.9%</td><td><strong>5.3%</strong></td>
+      <td>4인에서만 실전성이 있다(2.4배)</td>
+    </tr>
+    <tr>
+      <td>한 색 이상 품절 상태인 턴</td>
+      <td>73%</td><td><strong>77%</strong></td><td>62%</td>
+      <td>3인이 가장 빡빡하다</td>
+    </tr>
+    <tr>
+      <td>1인당 1단계 카드</td>
+      <td><strong>7.7장</strong></td><td>7.2장</td><td>5.8장</td>
+      <td>2인은 보너스 빌드업에 33% 더 투자</td>
+    </tr>
+    <tr>
+      <td>3단계 카드 구매 시점의 해당 색 보너스</td>
+      <td><strong>3.3개</strong></td><td>2.9개</td><td>2.4개</td>
+      <td>인원이 적을수록 더 깊은 할인이 필수</td>
+    </tr>
+    <tr>
+      <td>1인당 3단계 카드 / 희귀 카드</td>
+      <td><strong>1.37 / 0.18장</strong></td><td>1.21 / 0.10장</td><td>1.10 / 0.07장</td>
+      <td>2인이 고급 카드를 더 많이 먹는다(경쟁·마스터볼 여유)</td>
+    </tr>
+    <tr>
+      <td>1인당 진화 횟수</td>
+      <td><strong>3.07회</strong></td><td>2.79회</td><td>2.30회</td>
+      <td>인원이 늘면 진화 재료를 남이 먼저 집어간다</td>
+    </tr>
+    <tr>
+      <td>이기는 데 걸린 내 턴 수</td>
+      <td>31.1턴</td><td>29.8턴</td><td><strong>28.2턴</strong></td>
+      <td>4인이 가장 빠른 레이스</td>
+    </tr>
+    <tr>
+      <td>승자 최종 점수 <span class="muted">(목표 18점)</span></td>
+      <td><strong>20.9점</strong></td><td>20.2점</td><td>19.8점</td>
+      <td>2인은 마지막에 크게 터뜨려 끝낸다</td>
+    </tr>
+    <tr>
+      <td>동점 → 진화 카드 수로 갈린 판</td>
+      <td>6.0%</td><td>7.9%</td><td><strong>11.8%</strong></td>
+      <td>4인은 9판 중 1판이 tie-break 승부</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="card lesson">
+    <h4>인원별로 다르게 해야 하는 것</h4>
+    <p>
+      <strong>2인</strong> — 볼이 색당 4개뿐이라 &ldquo;같은 색 2개&rdquo;는 거의 못 쓰고, 3단계 카드는 보너스 없이는 못 산다.
+      1단계 카드로 색 보너스를 깊게 쌓는 장기전이 정석이고, 상대가 노리는 색을 내가 쥐고 있으면 봉쇄까지 된다.
+      진화 기회도 가장 많다(1인당 3.07회).
+    </p>
+    <p>
+      <strong>3인</strong> — 은행이 가장 자주 마르는 구간(턴의 77%에서 한 색 이상 품절).
+      볼 수급 자체가 병목이므로 &ldquo;3색 집중&rdquo;을 가장 엄격하게 지켜야 한다.
+    </p>
+    <p>
+      <strong>4인</strong> — 볼은 넉넉하지만(3색 집기 27.8%) <strong>카드와 마스터볼이 부족</strong>하다.
+      1인당 마스터볼이 1.25개뿐이라 희귀·전설은 사실상 포기 가능한 옵션이고,
+      진화 재료 카드는 미리 보관해 확보해야 한다(보관 사용률이 가장 높다).
+      그리고 9판 중 1판이 동점으로 갈리므로 <strong>진화 횟수를 점수처럼 세어야 한다</strong>.
+    </p>
+  </div>
+
+  <h3>그럼 MCTS AI는 인원수가 달라져도 통할까 — 통합니다</h3>
+  <p>
+    2부에서 확인한 &ldquo;기존 AI 대비&rdquo; 수치는 4인전 기준이었습니다.
+    같은 MCTS AI를 2인·3인전에서도 돌려 봤습니다. 결과는 <strong>인원수와 무관하게 압도적</strong>입니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>인원</th><th>MCTS AI 승률</th><th>실력이 같을 때의 기대치</th><th>배수</th><th>검증 판수</th></tr>
+    <tr><td>2인</td><td><strong>61.4%</strong> ±3.8%p</td><td>50%</td><td>1.23배</td><td>640판</td></tr>
+    <tr><td>3인</td><td><strong>46.7%</strong> ±3.8%p</td><td>33.3%</td><td>1.40배</td><td>660판</td></tr>
+    <tr><td>4인</td><td><strong>34.1%</strong> ±3.7%p</td><td>25%</td><td>1.36배</td><td>640판</td></tr>
+  </table>
+  </div>
+  <p class="note">
+    모두 서로 다른 시드 2개로 반복했고, <strong>5부의 견제 개선과 재튜닝이 모두 반영된 현재의 기존 AI</strong>를 상대로 한 수치입니다.
+    세 인원 모두 기대치를 신뢰구간 밖으로 상회합니다.
+  </p>
+  <p>
+    개선 전에는 배수가 인원과 함께 커졌지만(1.65 → 2.27 → 2.36) 지금은 <strong>1.2~1.4배로 평탄</strong>해졌습니다.
+    기존 AI를 강화한 효과가 <strong>4인전에서 가장 컸기 때문</strong>입니다
+    (4인 62.0% → 34.1%로 28%p 하락, 2·3인은 그보다 완만). 견제 개선의 이득이 4인에서 가장 컸다는 5부 결과와 일치합니다.
+  </p>
+
+  <div class="card lesson">
+    <h4>알고리즘은 그대로여도, 숫자의 의미는 달라진다</h4>
+    <p>
+      MCTS 자체는 인원수를 신경 쓰지 않도록 만들어져 있습니다(플레이어별 점수 벡터를 그대로 되돌려 줌).
+      하지만 <strong>같은 설정값이 인원에 따라 다른 뜻이 됩니다</strong>:
+    </p>
+    <p>
+      ① <strong>&ldquo;8턴까지 내다본다&rdquo;는 설정</strong>은 2인전에서 내 차례 4바퀴지만 4인전에서는 2바퀴입니다.
+      인원이 늘수록 같은 설정으로 보는 미래가 절반으로 짧아집니다.<br>
+      ② <strong>순위 보상</strong>: 2인전은 승·패 이진이지만 4인전에서는 2등도 0.67점을 받습니다 →
+      1등만 의미 있는 게임인데 AI가 &ldquo;안전한 2등&rdquo;을 선호할 여지가 생깁니다.<br>
+      ③ <strong>3인 이상에서는</strong> &ldquo;내가 A를 막으면 B가 이득&rdquo;이라는 구도를 모델이 표현하지 못합니다 —
+      5부에서 4인 견제가 통하지 않는 것과 같은 원인입니다.
+    </p>
+    <p>
+      덤으로 <strong>실제 버그도 하나 잡았습니다.</strong> 2·3인전은 은행이 잘 말라서
+      &ldquo;모두가 아무 행동도 할 수 없는&rdquo; 교착이 실제로 발생하는데,
+      AI 탐색 코드가 이 경우를 깊이 제한 없이 넘겨 무한 재귀로 죽었습니다.
+      4인전만 돌려서는 드러나지 않았던 문제입니다.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="blocking">
+  <h2><span class="kicker">5부 · 견제 실험</span>&ldquo;상대 카드를 먼저 뺏기&rdquo;는 정말 이기는 데 도움이 될까?</h2>
+
+  <p>
+    &ldquo;상대가 점수를 낼 것 같은 카드를 미리 선점한다&rdquo; — 보드게임에서 가장 흔한 조언 중 하나입니다.
+    하지만 내 턴은 하나뿐이고, 남을 막는 데 쓴 턴은 내 점수를 벌지 못합니다.
+    <strong>정말 이득인지</strong>, 이득이라면 <strong>어떤 카드를 어떻게 막아야 하는지</strong>를 실험으로 확인했습니다.
+  </p>
+
+  <h3>실험 설계 — 견제 규칙을 부품으로 쪼개서 켜고 끄기</h3>
+  <p>
+    AI가 카드를 고를 때 쓰는 견제 가산점을 6개 부품으로 분해했습니다:
+    <strong>①기본치</strong>(상대가 지금 살 수 있는 카드면 무조건 조금 선호) ·
+    <strong>②카드 점수 비례</strong> · <strong>③상대의 다음 진화 단계</strong> ·
+    <strong>④희귀·전설</strong> · <strong>⑤선두(12점 이상) 상대</strong> ·
+    <strong>⑥아직 못 사지만 볼 2개 이내로 다가온 카드</strong>(선제 견제).
+    이 중 일부만 남긴 &ldquo;견제 방식&rdquo; 13가지를 만들어, 각각을 기본 AI들과 겨루게 했습니다.
+  </p>
+  <p class="note">
+    후보 1명 vs 기본 AI (인원−1)명, 좌석을 돌려가며 조건당 480판.
+    <strong>2부의 교훈</strong>을 따라 핵심 조건은 <strong>서로 다른 난수 시드 2개로 각각 480판씩(총 960판)</strong> 반복해
+    한 번만 나온 우위는 채택하지 않았습니다. 기준선은 실력이 같을 때의 승률(2인 50% · 3인 33.3% · 4인 25%)입니다.
+  </p>
+
+  <h3>결과 — 기준선 대비 승률 변화(%p), <span class="muted">시드1 / 시드2</span></h3>
+  <div class="scroll-x">
+  <table>
+    <tr><th>견제 방식</th><th>2인</th><th>3인</th><th>4인</th><th>재현 여부</th></tr>
+    <tr>
+      <td><strong>견제를 아예 안 함</strong></td>
+      <td style="color:var(--bad)"><strong>-5.4 / -4.2</strong></td>
+      <td>+1.0 / +0.2</td>
+      <td>-1.5 / -2.5</td>
+      <td>재현 ✓</td>
+    </tr>
+    <tr>
+      <td><strong>①만 — &ldquo;상대가 지금 살 수 있는가&rdquo;만 본다</strong><br><span class="muted">카드 점수·진화·등급 전부 무시</span></td>
+      <td>-0.4 / +0.4</td>
+      <td>+0.6 / +0.4</td>
+      <td style="color:var(--good)"><strong>+9.0 / +5.2</strong></td>
+      <td>재현 ✓</td>
+    </tr>
+    <tr>
+      <td><strong>②만 — 고점 카드를 뺏는다</strong></td>
+      <td style="color:var(--bad)">-2.9 / -5.4</td>
+      <td style="color:var(--bad)">-3.1 / -1.0</td>
+      <td style="color:var(--bad)"><strong>-5.8 / -2.1</strong></td>
+      <td>6번 측정 전부 음수 ✓</td>
+    </tr>
+    <tr>
+      <td>③만 — 상대 진화 재료 저격</td>
+      <td>-5.4</td><td>+1.5</td><td>-2.9</td>
+      <td class="muted">1시드 · 견제 안 함과 동일</td>
+    </tr>
+    <tr>
+      <td>④만 — 희귀·전설 선점</td>
+      <td>-5.6</td><td>+1.3</td><td>-2.1</td>
+      <td class="muted">1시드 · 견제 안 함과 동일</td>
+    </tr>
+    <tr>
+      <td>⑤만 — 선두(12점 이상) 저격</td>
+      <td>-5.2</td><td>+1.7</td><td>-0.2</td>
+      <td class="muted">1시드 · 견제 안 함과 동일</td>
+    </tr>
+    <tr>
+      <td>⑥ 선제 견제 <span class="muted">(아직 못 사는 카드 미리 뺏기)</span></td>
+      <td>-0.4 / +3.1</td>
+      <td>+4.2 / +0.4</td>
+      <td>+5.0 / +0.4</td>
+      <td style="color:var(--bad)">재현 실패 ✗</td>
+    </tr>
+    <tr>
+      <td>기본 방식의 강도만 ×4</td>
+      <td>+1.5 / -1.9</td>
+      <td>+6.0 / +5.0</td>
+      <td>+4.0 / +2.9</td>
+      <td>3·4인만 재현(단, ×2에서는 음수)</td>
+    </tr>
+  </table>
+  </div>
+  <p class="note">
+    신뢰구간(95%)은 2인 ±4.5%p · 3인 ±4.2%p · 4인 ±3.9%p. 굵은 값이 통계적으로 의미 있는 차이입니다.
+    상대편 AI 3명은 <strong>당시의 기본 견제 방식</strong>을 쓰고 있었습니다 — 이 점이 마지막 절에서 중요해집니다.
+  </p>
+
+  <h3>거울 실험 — 반대 방향에서도 확인</h3>
+  <p>
+    위 실험은 &ldquo;모두가 견제하는 판에서 나만 안 하면?&rdquo;을 봅니다. 반대로 &ldquo;아무도 견제하지 않는 판에서 나만 하면?&rdquo;도 돌렸습니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>질문</th><th>2인</th><th>3인</th><th>4인</th></tr>
+    <tr><td>견제 안 하는 상대들 사이에서 <strong>내가 견제하면</strong></td>
+      <td style="color:var(--good)"><strong>+5.4%p</strong></td>
+      <td style="color:var(--good)"><strong>+10.2%p</strong></td>
+      <td>-1.0%p</td></tr>
+    <tr><td>견제하는 상대들 사이에서 <strong>내가 견제를 빼면</strong></td>
+      <td style="color:var(--bad)"><strong>-5.4%p</strong></td>
+      <td>+1.0%p</td>
+      <td>-1.5%p</td></tr>
+  </table>
+  </div>
+  <p>
+    2·3인에서는 두 방향이 일관됩니다 — <strong>견제는 &ldquo;안 하면 당하는&rdquo; 필수 수단</strong>입니다.
+    반면 4인에서는 양쪽 모두 0 근처. 사람 수가 많아지면 내가 턴을 써서 한 명을 막아도
+    <strong>이득의 대부분이 나머지 두 명에게 흘러갑니다</strong>.
+    4인에서 &ldquo;정통 견제&rdquo;(고점 카드 뺏기)가 통하지 않는 이유입니다 —
+    다만 <em>견제 방식을 바꾸면</em> 4인에서도 얘기가 달라집니다(마지막 절).
+  </p>
+
+  <h3>그래서 어떻게 견제해야 하는가</h3>
+
+  <div class="card strategy">
+    <h3><span class="rank">A</span> 견제 판단에 &ldquo;카드 점수&rdquo;를 다시 세지 마라</h3>
+    <p>
+      가장 일관된 발견입니다 — <strong>고점 카드를 뺏는 데 집중한 방식은 2·3·4인 6번의 측정에서 전부 손해</strong>였습니다(-1.0 ~ -5.8%p).
+      반대로 카드 점수를 완전히 무시하고 <strong>&ldquo;상대가 지금 이걸 살 수 있는가&rdquo;만</strong> 본 방식이 4인에서 <strong>+5~9%p</strong>로 가장 강했습니다.
+    </p>
+    <p>
+      이유는 간단합니다. <strong>고점 카드는 이미 그 자체로 사고 싶은 카드</strong>입니다.
+      견제 이유로 점수를 한 번 더 얹으면 같은 정보를 두 번 세는 셈이 되어 카드를 과대평가하고, 내 빌드를 망칩니다.
+      견제가 추가로 알려주는 정보는 딱 하나 — <strong>&ldquo;이 카드는 지금 상대 손에 닿는다&rdquo;</strong>입니다.
+    </p>
+    <p>
+      실전 번역: <strong>어차피 살 만한 카드가 둘 있어 고민될 때, 상대가 지금 살 수 있는 쪽을 집으세요.</strong>
+      대신 내 계획에 없는 고점 카드를 뺏으려고 턴을 버리지는 마세요.
+    </p>
+  </div>
+
+  <div class="card strategy">
+    <h3><span class="rank">B</span> &ldquo;미리 뺏기&rdquo;는 이득이 없다</h3>
+    <p>
+      상대가 아직 볼이 부족해 못 사는 카드를 <strong>미리</strong> 선점하는 선제 견제는,
+      첫 시드에서 3인 +4.2%p · 4인 +5.0%p로 유망해 보였지만 <strong>다른 시드에서 각각 +0.4%p로 사라졌습니다</strong>.
+      부족분 3개까지 넓혀도 마찬가지였습니다.
+    </p>
+    <p>
+      상대가 언제 그 색을 모을지는 불확실한데 내 턴은 확실히 소모되기 때문입니다.
+      <strong>견제는 &ldquo;지금 닿는 카드&rdquo;에만 하세요.</strong>
+    </p>
+  </div>
+
+  <div class="card strategy">
+    <h3><span class="rank">C</span> 진화 저격 · 희귀 선점 · 선두 저격은 그것만으로는 효과가 없다</h3>
+    <p>
+      상대의 다음 진화 단계 카드만 노리기(③), 희귀·전설만 선점하기(④),
+      12점 이상 앞선 상대만 저격하기(⑤) — 세 가지 모두 <strong>&ldquo;견제를 아예 안 함&rdquo;과 통계적으로 구별되지 않았습니다</strong>
+      (2인 -5.2 ~ -5.6%p로 견제 없음과 동일).
+      조건이 너무 까다로워 실제로 발동하는 상황이 드물기 때문입니다.
+      기존 정석으로 알려진 &ldquo;상대가 12점 이상일 때만 블로킹&rdquo;은 <strong>지나치게 소극적</strong>이라는 뜻입니다.
+    </p>
+  </div>
+
+  <h3>실험 결과를 AI에 반영했습니다 — 그러자 견제의 가치가 올라갔다</h3>
+  <p>
+    결론 A에 따라 AI의 견제 판단에서 <strong>카드 점수·진화·등급 가중을 전부 껐습니다</strong>
+    (&ldquo;상대가 지금 지불할 수 있는가&rdquo;만 남김). 그리고 또 다른 시드 2개로 480판씩 다시 검증했습니다.
+  </p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>새 AI들 사이에 넣은 후보</th><th>2인</th><th>3인</th><th>4인</th><th>합산 960판</th></tr>
+    <tr>
+      <td><strong>구 견제 방식</strong>(점수 가중 포함)</td>
+      <td>-0.2 / +3.3</td><td>-1.7 / -0.4</td><td>-0.2 / -3.3</td>
+      <td class="muted">+1.6 / -1.0 / -1.8%p — 전부 오차 범위 안</td>
+    </tr>
+    <tr>
+      <td><strong>견제를 아예 안 함</strong></td>
+      <td style="color:var(--bad)">-4.2 / -5.6</td>
+      <td style="color:var(--bad)">-3.1 / -5.6</td>
+      <td style="color:var(--bad)">-4.0 / -4.4</td>
+      <td><strong>6칸 전부 손해</strong></td>
+    </tr>
+  </table>
+  </div>
+  <p>
+    두 번째 줄이 이 장의 진짜 결론입니다. <strong>처음 실험에서는 3인 견제가 &ldquo;중립&rdquo;, 4인 견제가 &ldquo;무가치&rdquo;로 보였습니다.
+    그런데 견제 방식을 효율적인 형태로 바꾸자, 견제를 빼는 것이 2·3·4인 모두에서 손해로 바뀌었습니다.</strong>
+    즉 &ldquo;견제가 이득인가?&rdquo;라는 질문 자체가 잘못 놓인 것이었고, 정답은 <strong>&ldquo;어떻게 견제하느냐에 달렸다&rdquo;</strong>였습니다.
+  </p>
+  <p class="note">
+    한 가지 정직하게 밝혀 둘 점: 방향은 일관되지만 <strong>크기는 대칭이 아닙니다</strong>.
+    새 방식을 구 방식 필드에 넣으면 4인 +7.1%p(유의)인데, 구 방식을 새 방식 필드에 넣으면 -1.8%p(유의하지 않음)입니다.
+    4인 게임의 1 대 3 대결은 제로섬이 아니고 네 자리 중 세 자리의 정체가 바뀌므로 두 방향의 크기가 같을 이유가 없습니다.
+    &ldquo;새 방식이 나쁘다는 증거는 없고, 좋다는 증거는 강하다&rdquo; 정도가 정확한 요약입니다.
+  </p>
+
+  <div class="card lesson">
+    <h4>인원별 견제 체크리스트</h4>
+    <p>
+      <strong>공통</strong> — 견제 여부는 <strong>&ldquo;상대가 지금 이 카드를 살 수 있는가&rdquo;</strong>로만 판단하세요.
+      이 형태로 하면 인원수와 무관하게 견제를 빼는 쪽이 손해입니다(2·3·4인 모두 -3~-6%p).
+    </p>
+    <p>
+      <strong>2인</strong> — 가장 확실합니다. 제로섬이라 내가 뺏은 만큼 그대로 상대 손해가 됩니다.
+    </p>
+    <p>
+      <strong>3인</strong> — 상대들이 견제를 안 하고 있다면 내가 하는 것만으로 <strong>+10%p</strong>.
+    </p>
+    <p>
+      <strong>4인</strong> — <strong>고점 카드를 뺏으려 턴을 쓰는 견제는 버리세요</strong>(-2~-6%p).
+      대신 어차피 살 만한 카드가 둘 있어 고민될 때 상대가 지금 살 수 있는 쪽을 집는, <strong>비용 0의 타이브레이커</strong>로만 쓰면
+      가장 큰 이득이 나옵니다.
     </p>
   </div>
 </section>
@@ -664,7 +1128,11 @@
     데이터 출처: 이 저장소의 <a href="../AI_PLAN.md">AI_PLAN.md</a>(훈련 로드맵·검증 결과),
     <a href="../STRATEGY.md">STRATEGY.md</a>(전략 정의·카드 데이터 교차 검증),
     <code>tuning-results/</code>(자기대국·검증 원본 기록).
-    모든 승률 수치는 2026-07-30 검증 매치 기준.
+  </p>
+  <p>
+    1~3부의 승률은 2026-07-30 검증 매치, 4·5부(인원수별 차이 · 견제 실험)는 2026-07-31 검증 매치 기준입니다.
+    재현: <code>npm run eval:players -- --mode=stats|block|mcts --players=2,3,4</code>
+    (원본 <code>tuning-results/players-*.json</code>).
   </p>
 </footer>
 
