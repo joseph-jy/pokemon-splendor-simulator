@@ -1,0 +1,134 @@
+{
+  "config": {
+    "mode": "block-vs-none",
+    "games": 480,
+    "seed": 20260731,
+    "players": [
+      2,
+      3,
+      4
+    ]
+  },
+  "cells": [
+    {
+      "players": 2,
+      "mode": "full",
+      "games": 480,
+      "wins": 266,
+      "winRate": 0.5541666666666667,
+      "baseline": 0.5,
+      "ci95": 0.044467418758215756,
+      "rankScore": 0.5541666666666667
+    },
+    {
+      "players": 2,
+      "mode": "none",
+      "games": 480,
+      "wins": 240,
+      "winRate": 0.5,
+      "baseline": 0.5,
+      "ci95": 0.044730675529588565,
+      "rankScore": 0.5
+    },
+    {
+      "players": 2,
+      "mode": "evo",
+      "games": 480,
+      "wins": 244,
+      "winRate": 0.5083333333333333,
+      "baseline": 0.5,
+      "ci95": 0.044724462504274955,
+      "rankScore": 0.5083333333333333
+    },
+    {
+      "players": 2,
+      "mode": "points",
+      "games": 480,
+      "wins": 256,
+      "winRate": 0.5333333333333333,
+      "baseline": 0.5,
+      "ci95": 0.044631163336179586,
+      "rankScore": 0.5333333333333333
+    },
+    {
+      "players": 3,
+      "mode": "full",
+      "games": 480,
+      "wins": 209,
+      "winRate": 0.4354166666666667,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.04435596210681599,
+      "rankScore": 0.5729166666666666
+    },
+    {
+      "players": 3,
+      "mode": "none",
+      "games": 480,
+      "wins": 160,
+      "winRate": 0.3333333333333333,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.04217248532536965,
+      "rankScore": 0.5
+    },
+    {
+      "players": 3,
+      "mode": "evo",
+      "games": 480,
+      "wins": 152,
+      "winRate": 0.31666666666666665,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.041615290548155576,
+      "rankScore": 0.48854166666666665
+    },
+    {
+      "players": 3,
+      "mode": "points",
+      "games": 480,
+      "wins": 169,
+      "winRate": 0.35208333333333336,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.042728511324136395,
+      "rankScore": 0.5177083333333333
+    },
+    {
+      "players": 4,
+      "mode": "full",
+      "games": 480,
+      "wins": 115,
+      "winRate": 0.23958333333333334,
+      "baseline": 0.25,
+      "ci95": 0.03818471624847894,
+      "rankScore": 0.5048611111111111
+    },
+    {
+      "players": 4,
+      "mode": "none",
+      "games": 480,
+      "wins": 120,
+      "winRate": 0.25,
+      "baseline": 0.25,
+      "ci95": 0.03873790133706265,
+      "rankScore": 0.5
+    },
+    {
+      "players": 4,
+      "mode": "evo",
+      "games": 480,
+      "wins": 132,
+      "winRate": 0.275,
+      "baseline": 0.25,
+      "ci95": 0.039945770531225624,
+      "rankScore": 0.5090277777777777
+    },
+    {
+      "players": 4,
+      "mode": "points",
+      "games": 480,
+      "wins": 110,
+      "winRate": 0.22916666666666666,
+      "baseline": 0.25,
+      "ci95": 0.03760030951286123,
+      "rankScore": 0.4736111111111112
+    }
+  ]
+}

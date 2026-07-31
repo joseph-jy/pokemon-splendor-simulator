@@ -1,0 +1,42 @@
+{
+  "config": {
+    "mode": "mcts",
+    "games": 320,
+    "seed": 4242,
+    "players": [
+      2,
+      3,
+      4
+    ],
+    "iters": 400
+  },
+  "cells": [
+    {
+      "players": 2,
+      "games": 320,
+      "wins": 196,
+      "winRate": 0.6125,
+      "baseline": 0.5,
+      "ci95": 0.05337894452637669,
+      "rankScore": 0.6125
+    },
+    {
+      "players": 3,
+      "games": 330,
+      "wins": 151,
+      "winRate": 0.4575757575757576,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.0537526835278808,
+      "rankScore": 0.6015151515151516
+    },
+    {
+      "players": 4,
+      "games": 320,
+      "wins": 107,
+      "winRate": 0.334375,
+      "baseline": 0.25,
+      "ci95": 0.05169074534476046,
+      "rankScore": 0.5916666666666666
+    }
+  ]
+}

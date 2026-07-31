@@ -4,4 +4,7 @@ dist/
 .DS_Store
 .vite/
 coverage/
-tuning-results/
+# 실험 결과 원본(players-*.json 등)은 추적한다 — 문서가 근거로 인용한다.
+# 워커 IPC 스크래치만 제외: 샤드 지시서와 부분 결과라 최종 JSON 에 이미 합산돼 있고,
+# 실행마다 같은 이름으로 덮어써져 diff 가 무의미하다.
+tuning-results/.tmp/

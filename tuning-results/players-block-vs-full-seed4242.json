@@ -1,0 +1,74 @@
+{
+  "config": {
+    "mode": "block-vs-full",
+    "games": 480,
+    "seed": 4242,
+    "players": [
+      2,
+      3,
+      4
+    ]
+  },
+  "cells": [
+    {
+      "players": 2,
+      "mode": "legacy",
+      "games": 480,
+      "wins": 239,
+      "winRate": 0.4979166666666667,
+      "baseline": 0.5,
+      "ci95": 0.044730287240789306,
+      "rankScore": 0.4979166666666667
+    },
+    {
+      "players": 2,
+      "mode": "none",
+      "games": 480,
+      "wins": 220,
+      "winRate": 0.4583333333333333,
+      "baseline": 0.5,
+      "ci95": 0.04457509009982378,
+      "rankScore": 0.4583333333333333
+    },
+    {
+      "players": 3,
+      "mode": "legacy",
+      "games": 480,
+      "wins": 152,
+      "winRate": 0.31666666666666665,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.041615290548155576,
+      "rankScore": 0.49895833333333334
+    },
+    {
+      "players": 3,
+      "mode": "none",
+      "games": 480,
+      "wins": 145,
+      "winRate": 0.3020833333333333,
+      "baseline": 0.3333333333333333,
+      "ci95": 0.04107717989047726,
+      "rankScore": 0.465625
+    },
+    {
+      "players": 4,
+      "mode": "legacy",
+      "games": 480,
+      "wins": 119,
+      "winRate": 0.24791666666666667,
+      "baseline": 0.25,
+      "ci95": 0.03862969657859908,
+      "rankScore": 0.4944444444444444
+    },
+    {
+      "players": 4,
+      "mode": "none",
+      "games": 480,
+      "wins": 101,
+      "winRate": 0.21041666666666667,
+      "baseline": 0.25,
+      "ci95": 0.03646485636090312,
+      "rankScore": 0.46180555555555547
+    }
+  ]
+}

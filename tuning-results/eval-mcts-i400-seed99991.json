@@ -1,0 +1,21 @@
+{
+  "config": {
+    "iters": 400,
+    "games": 160,
+    "seed": 99991,
+    "mcts": {
+      "iterations": 400,
+      "maxChildren": 12,
+      "maxDepth": 8,
+      "rolloutTurns": 50,
+      "c": 0.7
+    }
+  },
+  "result": {
+    "winRate": 0.66875,
+    "ci95": 0.07292995087325234,
+    "wins": 107,
+    "games": 160,
+    "rankScore": 0.8270833333333332
+  }
+}
