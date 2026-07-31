@@ -108,6 +108,11 @@
   .evoline .stage { flex: 1 1 140px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
   .evoline .stage .pts { font-size: 30px; font-weight: 700; color: var(--series-1); }
   .evoline .stage .name { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+  .evoline .stage .fate { font-size: 12px; color: var(--ink-3); margin-top: 8px; }
+  /* 진화로 타일 아래로 묻힌 단계: 점수에서 빠지고 색 보너스만 남는다 */
+  .evoline .stage.buried { border-style: dashed; background: none; }
+  .evoline .stage.buried .pts { color: var(--ink-3); text-decoration: line-through; }
+  .evoline .stage.buried .name { color: var(--ink-3); }
   .evoline .arrow { display: flex; align-items: center; color: var(--ink-3); font-size: 13px; flex-direction: column; justify-content: center; min-width: 56px; }
   .evoline .arrow .gain { color: var(--good); font-weight: 700; font-size: 14px; }
   .sum-badge { display: inline-block; margin-top: 16px; padding: 8px 18px; background: var(--accent-soft); border-radius: 999px; font-weight: 650; color: var(--ink-1); }
@@ -620,20 +625,40 @@
   </div>
 
   <div class="card strategy">
-    <h3><span class="rank">②</span> 1-3-5 메인 라인 하나가 승리의 절반이다</h3>
+    <h3><span class="rank">②</span> 메인 라인 완주는 &ldquo;볼을 안 쓰고 얻는 5점&rdquo;이다</h3>
     <p>
-      메인 진화 라인(예: 파이리→리자드→리자몽)은 단계별로 1점 → 3점 → 5점.
-      한 라인을 끝까지 키우면 <strong>그 라인 하나로 9점</strong> — 목표 18점의 절반입니다.
-      여기에 서브 라인과 전설 카드로 나머지를 채우는 것이 기본 설계도입니다.
+      메인 진화 라인(예: 파이리→리자드→리자몽)은 단계별로 1점 → 3점 → 5점입니다.
+      여기서 헷갈리기 쉬운 점 — <strong>점수는 더해지지 않고 교체됩니다</strong>.
+      진화하면 하위 카드가 타일 아래로 묻혀 점수 계산에서 빠지므로(①과 같은 규칙),
+      한 라인을 진화로 완주해도 타일 위에 남는 건 리자몽 한 장뿐입니다.
+      즉 라인 하나는 <strong>9점이 아니라 5점</strong> — 18점의 절반이 아니라 약 28%입니다.
+    </p>
+    <p>
+      그렇다면 완주는 왜 강한가? <strong>진화는 볼을 한 개도 지불하지 않기 때문</strong>입니다.
+      필요한 건 색 보너스 조건뿐이고, 진화 대상 카드도 보드나 보관에서 공짜로 가져옵니다.
+      1점 카드를 5점 카드로 갈아끼우는 <strong>+4점을 볼 지출 0으로</strong> 얻는 셈이고,
+      덤으로 진화 카드 2장이 동점 tie-breaker에서 앞섭니다.
+      라인 완주의 가치는 총점의 크기가 아니라 <em>점수 효율</em>에 있습니다.
     </p>
     <div class="evoline">
-      <div class="stage"><div class="pts">1점</div><div class="name">파이리 (1단계)</div></div>
+      <div class="stage buried"><div class="pts">1점</div><div class="name">파이리 (1단계)</div><div class="fate">묻힘 · 색 보너스만 남음</div></div>
       <div class="arrow"><span class="gain">+2점</span>진화</div>
-      <div class="stage"><div class="pts">3점</div><div class="name">리자드 (2단계)</div></div>
+      <div class="stage buried"><div class="pts">3점</div><div class="name">리자드 (2단계)</div><div class="fate">묻힘 · 색 보너스만 남음</div></div>
       <div class="arrow"><span class="gain">+2점</span>진화</div>
-      <div class="stage"><div class="pts">5점</div><div class="name">리자몽 (3단계)</div></div>
+      <div class="stage"><div class="pts">5점</div><div class="name">리자몽 (3단계)</div><div class="fate">타일 위 · 점수로 계산</div></div>
     </div>
-    <div style="text-align:center;"><span class="sum-badge">라인 하나 = 1+3+5 = 9점 + 진화 카드 2장(동점 우위)</span></div>
+    <div style="text-align:center;"><span class="sum-badge">라인 하나 완주 = 최종 5점 (1점·3점은 묻힘) + 진화 카드 2장</span></div>
+    <p>
+      그래서 18점 설계도는 &ldquo;메인 라인 하나 + 나머지&rdquo;가 아닙니다.
+      5점짜리 최상위 카드만으로 채운다 해도 <strong>네 장(20점)</strong>이 필요하니,
+      완주한 메인 라인 두세 개에 서브 라인 3단계(3~4점)와 전설 카드(2점)를 겹쳐 쌓는 <strong>넓은 전선</strong>이 현실적인 그림입니다.
+      메인 라인은 그중 가장 효율 좋은 한 축일 뿐, 그 하나로 승리의 절반이 해결되지는 않습니다.
+    </p>
+    <p class="note">
+      참고로 9점이 원리적으로 불가능한 건 아닙니다 — 파이리·리자드·리자몽을 <strong>진화 없이 각각 구매</strong>하면
+      셋 다 타일에 남아 1+3+5=9점 + 색 보너스 3개가 됩니다. 다만 그건 진화 할인을 포기하고 정가로 세 번 사는,
+      훨씬 느린 별개의 플랜입니다.
+    </p>
   </div>
 
   <div class="card strategy">
