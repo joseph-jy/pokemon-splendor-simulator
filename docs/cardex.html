@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포켓몬 스플렌더 카드 도감 — 전체 90장</title>
+<style>
+  :root {
+    color-scheme: dark;
+    /* 볼 색 토큰 — 게임 UI(src/ui/styles.css)와 동일 */
+    --ball-red-rgb: 242, 44, 38;
+    --ball-blue-rgb: 33, 132, 178;
+    --ball-black-rgb: 46, 41, 40;
+    --ball-pink-rgb: 235, 184, 210;
+    --ball-yellow-rgb: 237, 232, 71;
+    --ball-gold-rgb: 162, 93, 158;
+
+    --page: #14151a;
+    --surface: #1e1f26;
+    --surface-2: #272932;
+    --ink-1: #f2f3f7;
+    --ink-2: #a9adbb;
+    --ink-3: #7d8190;
+    --border: rgba(255,255,255,0.12);
+    --accent: #6aa9ff;
+    --card-w: clamp(148px, 12.5vw, 186px);
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+    --page: #f4f4f1;
+    --surface: #ffffff;
+    --surface-2: #f0f0ec;
+    --ink-1: #14151a;
+    --ink-2: #55565e;
+    --ink-3: #85868e;
+    --border: rgba(0,0,0,0.12);
+    --accent: #1f6fd0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink-1);
+    line-height: 1.6; font-size: 15px; -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1440px; margin: 0 auto; padding: 0 20px 96px; }
+  a { color: var(--accent); }
+
+  /* ── 헤더 ─────────────────────────────────────── */
+  header.hero { padding: 44px 0 20px; text-align: center; }
+  .hero h1 { font-size: clamp(24px, 3.6vw, 34px); letter-spacing: -0.01em; }
+  .hero p { color: var(--ink-2); margin-top: 8px; font-size: 15px; }
+  .hero .total { color: var(--ink-1); font-weight: 700; }
+  .theme-btn {
+    position: absolute; top: 16px; right: 20px;
+    background: var(--surface); color: var(--ink-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+    font-family: inherit;
+  }
+  .theme-btn:hover { color: var(--ink-1); }
+
+  /* ── 컨트롤 바 ────────────────────────────────── */
+  .controls {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--page) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+    margin-bottom: 8px;
+  }
+  .ctrl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ctrl-row + .ctrl-row { margin-top: 8px; }
+  .ctrl-label {
+    flex: 0 0 auto; width: 68px; font-size: 12.5px; color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 13px; border-radius: 999px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--ink-2); font-size: 13.5px; font-weight: 500;
+    font-family: inherit; line-height: 1.4;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .chip:hover { color: var(--ink-1); border-color: var(--ink-3); }
+  .chip[aria-pressed="true"] {
+    background: var(--ink-1); color: var(--page); border-color: var(--ink-1); font-weight: 650;
+  }
+  .chip .dot {
+    width: 12px; height: 12px; border-radius: 999px; display: inline-block;
+    border: 1px solid rgba(128,128,128,0.45);
+  }
+  .chip .n { font-size: 11.5px; opacity: 0.65; font-variant-numeric: tabular-nums; }
+  .dot.red { background: rgb(var(--ball-red-rgb)); }
+  .dot.blue { background: rgb(var(--ball-blue-rgb)); }
+  .dot.black { background: #3f434e; }
+  .dot.pink { background: rgb(var(--ball-pink-rgb)); }
+  .dot.yellow { background: rgb(var(--ball-yellow-rgb)); }
+
+  .search {
+    flex: 1 1 180px; max-width: 260px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 14px; color: var(--ink-1); font-size: 13.5px; font-family: inherit;
+  }
+  .search::placeholder { color: var(--ink-3); }
+  .search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .count { margin-left: auto; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  /* ── 그룹 ─────────────────────────────────────── */
+  .group { margin-top: 30px; }
+  .group-head {
+    display: flex; align-items: baseline; gap: 10px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .group-head h2 { font-size: 18px; letter-spacing: -0.01em; }
+  .group-head .swatch {
+    width: 12px; height: 12px; border-radius: 3px; align-self: center;
+    border: 1px solid rgba(128,128,128,0.45);
+  }
+  .group-head .meta { font-size: 12.5px; color: var(--ink-3); }
+  .group-head .cnt { margin-left: auto; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+    gap: 14px;
+  }
+  .empty { color: var(--ink-3); padding: 60px 0; text-align: center; font-size: 15px; }
+
+  /* ── 카드 (게임 UI 의 .poke-card 재현) ─────────── */
+  .pc {
+    position: relative;
+    display: flex; flex-direction: column;
+    min-height: 250px;
+    border-radius: 14px; overflow: hidden;
+    --pc-accent: 235,184,210;
+    background: linear-gradient(rgba(var(--pc-accent),0.3), rgba(var(--pc-accent),0.3)), #14151a;
+    border: 3px solid rgb(var(--pc-accent));
+    box-shadow: 0 2px 9px rgba(0,0,0,0.4);
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+  }
+  .pc:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.5); }
+  .pc.c-red { --pc-accent: var(--ball-red-rgb); }
+  .pc.c-blue { --pc-accent: var(--ball-blue-rgb); }
+  .pc.c-black { --pc-accent: 51, 54, 61; }
+  .pc.c-pink { --pc-accent: var(--ball-pink-rgb); }
+  .pc.c-yellow { --pc-accent: var(--ball-yellow-rgb); }
+  .pc.t-rare { box-shadow: 0 0 0 2px rgba(255,255,255,0.28), 0 3px 13px rgba(0,0,0,0.5); }
+  .pc.t-legendary { box-shadow: 0 0 0 3px rgba(255,255,255,0.4), 0 4px 18px rgba(0,0,0,0.55); }
+  .pc.t-rare::after, .pc.t-legendary::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4;
+    background: radial-gradient(120% 60% at 15% 0%, rgba(255,255,255,0.4), rgba(255,255,255,0) 55%);
+    mix-blend-mode: screen;
+  }
+
+  .pc-head {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    padding: 4px 8px; min-height: 74px;
+    background: linear-gradient(180deg, rgba(var(--pc-accent),0.78), rgba(var(--pc-accent),0.4));
+    border-bottom: 2px solid rgba(var(--pc-accent),0.8);
+  }
+  .pc-pts {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 40px; font-weight: 900; line-height: 1; color: #fff;
+    text-shadow: -2px -2px 0 rgb(var(--pc-accent)), 2px -2px 0 rgb(var(--pc-accent)),
+                 -2px 2px 0 rgb(var(--pc-accent)), 2px 2px 0 rgb(var(--pc-accent)),
+                 0 3px 5px rgba(0,0,0,0.3);
+  }
+  .pc-bonus { position: absolute; right: 8px; top: 8px; display: flex; gap: 3px; }
+  .pc-bonus img { width: 40px; height: 40px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)); }
+
+  .pc-evo {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 2px 5px 3px; border-radius: 9px;
+    background: linear-gradient(180deg, #6b7280, #4b5563);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .pc-evo.red { background: linear-gradient(180deg, #e85555, #c62222); }
+  .pc-evo.blue { background: linear-gradient(180deg, #3f7ef2, #1c4fc0); }
+  .pc-evo.black { background: linear-gradient(180deg, #4a4d57, #282a31); }
+  .pc-evo.pink { background: linear-gradient(180deg, #ff77c8, #e23aa0); }
+  .pc-evo.yellow { background: linear-gradient(180deg, #f2ce55, #d6a516); }
+  .pc-evo img.evo-img {
+    width: 38px; height: 44px; border-radius: 6px; object-fit: contain;
+    background: #fff; border: 1.5px solid rgba(255,255,255,0.95);
+  }
+  .pc-evo .arr { color: #fff; font-size: 9px; line-height: 1; opacity: 0.95; }
+  .pc-evo .evo-cost {
+    display: flex; align-items: center; gap: 2px;
+    font-size: 13px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+  }
+  .pc-evo .evo-cost img { width: 14px; height: 14px; }
+  .pc-evo-spacer { flex: 0 0 1px; }
+
+  .pc-art {
+    position: relative; flex: 1 1 auto; display: flex;
+    align-items: center; justify-content: center; min-height: 0; overflow: hidden;
+  }
+  .pc-art img { width: 100%; height: 100%; min-height: 120px; object-fit: contain; }
+
+  .pc-cost {
+    position: absolute; left: 6px; bottom: 8px; z-index: 2;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .pc-chip {
+    position: relative; width: 30px; height: 30px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.9);
+  }
+  .pc-chip span { font-size: 15px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.55); }
+  .pc-chip img { position: absolute; right: -5px; bottom: -4px; width: 15px; height: 15px; }
+  .pc-chip.red { background: rgb(var(--ball-red-rgb)); }
+  .pc-chip.blue { background: rgb(var(--ball-blue-rgb)); }
+  .pc-chip.black { background: #33363d; }
+  .pc-chip.pink { background: #e0559a; }
+  .pc-chip.yellow { background: #e0a91e; }
+  .pc-chip.gold { background: #8b5cf6; }
+
+  .pc-name {
+    position: absolute; right: 6px; bottom: 8px; z-index: 3;
+    max-width: calc(100% - 46px); padding: 3px 10px; text-align: center;
+    font-size: 12px; font-weight: 800; color: #2b2b33;
+    background: rgba(255,255,255,0.94); border: 2px solid rgb(var(--pc-accent));
+    border-radius: 999px;
+  }
+
+  /* ── 범례 ─────────────────────────────────────── */
+  .legend { margin-top: 56px; border-top: 1px solid var(--border); padding-top: 24px; }
+  .legend h2 { font-size: 16px; margin-bottom: 12px; }
+  .legend table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .legend th, .legend td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .legend th { color: var(--ink-3); font-weight: 600; font-size: 12.5px; }
+  .legend td:first-child { font-weight: 650; white-space: nowrap; }
+  .legend .scroll-x { overflow-x: auto; }
+  .legend p { color: var(--ink-3); font-size: 13px; margin-top: 12px; }
+
+  @media (max-width: 640px) {
+    :root { --card-w: 142px; }
+    .ctrl-label { width: 100%; }
+    main { padding: 0 12px 64px; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-btn" id="theme-btn" type="button">라이트 모드</button>
+<main>
+  <header class="hero">
+    <h1>포켓몬 스플렌더 카드 도감</h1>
+    <p>전체 <span class="total">90장</span> — 등급별 · 색깔별 · 진화 라인별로 골라 보기</p>
+  </header>
+
+  <div class="controls">
+    <div class="ctrl-row">
+      <span class="ctrl-label">묶어보기</span>
+      <div class="chips" id="f-group"></div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">등급</span>
+      <div class="chips" id="f-tier"></div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">보너스 색</span>
+      <div class="chips" id="f-color"></div>
+      <input class="search" id="f-search" type="search" placeholder="이름 검색 (예: 리자몽)" autocomplete="off">
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+
+  <div id="out"></div>
+
+  <section class="legend">
+    <h2>보는 법</h2>
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>카드 위치</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td>왼쪽 위 큰 숫자</td><td>승점. 0점 카드는 숫자를 표시하지 않는다.</td></tr>
+          <tr><td>오른쪽 위 볼</td><td>이 카드가 주는 <strong>보너스 색과 개수</strong>. 이후 카드 비용을 그 색만큼 할인한다.</td></tr>
+          <tr><td>가운데 위 미니 카드</td><td>진화 대상과 <strong>진화에 필요한 보너스</strong>(볼이 아니라 보유 카드 보너스로 충족). 1·2단계만.</td></tr>
+          <tr><td>왼쪽 아래 원형 칩</td><td>획득 <strong>원가</strong>(할인 전). 보라색 칩은 마스터볼 1개 필수를 뜻한다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h2 style="margin-top:24px">등급</h2>
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>등급</th><th>장수</th><th>설명</th></tr></thead>
+        <tbody id="legend-tier"></tbody>
+      </table>
+    </div>
+    <p>데이터 출처: <code>src/data/cards.ts</code> · 규칙: <a href="../GAME.md">GAME.md</a> · AI 해설: <a href="ai-analysis.html">ai-analysis.html</a><br>
+    이 페이지는 <code>npm run docs:cardex</code> 로 생성된다 — 직접 편집하지 말 것.</p>
+  </section>
+</main>
+
+<script>
+const DATA = {"cards":[{"id":"s1-001","name":"파이리","tier":1,"points":1,"color":"blue","bonusN":1,"img":"../assets/stage1/charmander.png","cost":[["black",3],["pink",2]],"master":false,"line":"charizard","evo":{"name":"리자드","img":"../assets/stage2/charmeleon.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s1-002","name":"파이리","tier":1,"points":1,"color":"blue","bonusN":1,"img":"../assets/stage1/charmander.png","cost":[["blue",4]],"master":false,"line":"charizard","evo":{"name":"리자드","img":"../assets/stage2/charmeleon.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s2-001","name":"리자드","tier":2,"points":3,"color":"blue","bonusN":1,"img":"../assets/stage2/charmeleon.png","cost":[["red",1],["black",4],["yellow",4]],"master":false,"line":"charizard","evo":{"name":"리자몽","img":"../assets/stage3/charizard.png","color":"red","cost":[["red",4]]}},{"id":"s2-002","name":"리자드","tier":2,"points":3,"color":"blue","bonusN":1,"img":"../assets/stage2/charmeleon.png","cost":[["blue",6]],"master":false,"line":"charizard","evo":{"name":"리자몽","img":"../assets/stage3/charizard.png","color":"red","cost":[["red",4]]}},{"id":"s3-001","name":"리자몽","tier":3,"points":5,"color":"blue","bonusN":1,"img":"../assets/stage3/charizard.png","cost":[["black",7],["yellow",3]],"master":false,"line":"charizard","evo":null},{"id":"s1-003","name":"이상해씨","tier":1,"points":1,"color":"yellow","bonusN":1,"img":"../assets/stage1/bulbasaur.png","cost":[["red",3],["black",2]],"master":false,"line":"venusaur","evo":{"name":"이상해풀","img":"../assets/stage2/ivysaur.png","color":"pink","cost":[["pink",3]]}},{"id":"s1-004","name":"이상해씨","tier":1,"points":1,"color":"yellow","bonusN":1,"img":"../assets/stage1/bulbasaur.png","cost":[["yellow",4]],"master":false,"line":"venusaur","evo":{"name":"이상해풀","img":"../assets/stage2/ivysaur.png","color":"pink","cost":[["pink",3]]}},{"id":"s2-003","name":"이상해풀","tier":2,"points":3,"color":"yellow","bonusN":1,"img":"../assets/stage2/ivysaur.png","cost":[["red",4],["blue",1],["pink",4]],"master":false,"line":"venusaur","evo":{"name":"이상해꽃","img":"../assets/stage3/venusaur.png","color":"blue","cost":[["blue",4]]}},{"id":"s2-004","name":"이상해풀","tier":2,"points":3,"color":"yellow","bonusN":1,"img":"../assets/stage2/ivysaur.png","cost":[["yellow",6]],"master":false,"line":"venusaur","evo":{"name":"이상해꽃","img":"../assets/stage3/venusaur.png","color":"blue","cost":[["blue",4]]}},{"id":"s3-002","name":"이상해꽃","tier":3,"points":5,"color":"yellow","bonusN":1,"img":"../assets/stage3/venusaur.png","cost":[["red",7],["pink",3]],"master":false,"line":"venusaur","evo":null},{"id":"s1-005","name":"꼬부기","tier":1,"points":1,"color":"red","bonusN":1,"img":"../assets/stage1/squirtle.png","cost":[["blue",2],["pink",3]],"master":false,"line":"blastoise","evo":{"name":"어니부기","img":"../assets/stage2/wartortle.png","color":"black","cost":[["black",3]]}},{"id":"s1-006","name":"꼬부기","tier":1,"points":1,"color":"red","bonusN":1,"img":"../assets/stage1/squirtle.png","cost":[["red",4]],"master":false,"line":"blastoise","evo":{"name":"어니부기","img":"../assets/stage2/wartortle.png","color":"black","cost":[["black",3]]}},{"id":"s2-005","name":"어니부기","tier":2,"points":3,"color":"red","bonusN":1,"img":"../assets/stage2/wartortle.png","cost":[["blue",4],["black",4],["pink",1]],"master":false,"line":"blastoise","evo":{"name":"거북왕","img":"../assets/stage3/blastoise.png","color":"pink","cost":[["pink",4]]}},{"id":"s2-006","name":"어니부기","tier":2,"points":3,"color":"red","bonusN":1,"img":"../assets/stage2/wartortle.png","cost":[["red",6]],"master":false,"line":"blastoise","evo":{"name":"거북왕","img":"../assets/stage3/blastoise.png","color":"pink","cost":[["pink",4]]}},{"id":"s3-003","name":"거북왕","tier":3,"points":5,"color":"red","bonusN":1,"img":"../assets/stage3/blastoise.png","cost":[["blue",7],["black",3]],"master":false,"line":"blastoise","evo":null},{"id":"s1-007","name":"케이시","tier":1,"points":1,"color":"pink","bonusN":1,"img":"../assets/stage1/abra.png","cost":[["blue",3],["yellow",2]],"master":false,"line":"alakazam","evo":{"name":"윤겔라","img":"../assets/stage2/kadabra.png","color":"red","cost":[["red",3]]}},{"id":"s1-008","name":"케이시","tier":1,"points":1,"color":"pink","bonusN":1,"img":"../assets/stage1/abra.png","cost":[["pink",4]],"master":false,"line":"alakazam","evo":{"name":"윤겔라","img":"../assets/stage2/kadabra.png","color":"red","cost":[["red",3]]}},{"id":"s2-007","name":"윤겔라","tier":2,"points":3,"color":"pink","bonusN":1,"img":"../assets/stage2/kadabra.png","cost":[["red",4],["black",1],["yellow",4]],"master":false,"line":"alakazam","evo":{"name":"후딘","img":"../assets/stage3/alakazam.png","color":"black","cost":[["black",4]]}},{"id":"s2-008","name":"윤겔라","tier":2,"points":3,"color":"pink","bonusN":1,"img":"../assets/stage2/kadabra.png","cost":[["pink",6]],"master":false,"line":"alakazam","evo":{"name":"후딘","img":"../assets/stage3/alakazam.png","color":"black","cost":[["black",4]]}},{"id":"s3-004","name":"후딘","tier":3,"points":5,"color":"pink","bonusN":1,"img":"../assets/stage3/alakazam.png","cost":[["red",3],["yellow",7]],"master":false,"line":"alakazam","evo":null},{"id":"s1-009","name":"미뇽","tier":1,"points":1,"color":"black","bonusN":1,"img":"../assets/stage1/dratini.png","cost":[["red",2],["yellow",3]],"master":false,"line":"dragonite","evo":{"name":"신뇽","img":"../assets/stage2/dragonair.png","color":"blue","cost":[["blue",3]]}},{"id":"s1-010","name":"미뇽","tier":1,"points":1,"color":"black","bonusN":1,"img":"../assets/stage1/dratini.png","cost":[["black",4]],"master":false,"line":"dragonite","evo":{"name":"신뇽","img":"../assets/stage2/dragonair.png","color":"blue","cost":[["blue",3]]}},{"id":"s2-009","name":"신뇽","tier":2,"points":3,"color":"black","bonusN":1,"img":"../assets/stage2/dragonair.png","cost":[["blue",4],["pink",4],["yellow",1]],"master":false,"line":"dragonite","evo":{"name":"망나뇽","img":"../assets/stage3/dragonite.png","color":"yellow","cost":[["yellow",4]]}},{"id":"s2-010","name":"신뇽","tier":2,"points":3,"color":"black","bonusN":1,"img":"../assets/stage2/dragonair.png","cost":[["black",6]],"master":false,"line":"dragonite","evo":{"name":"망나뇽","img":"../assets/stage3/dragonite.png","color":"yellow","cost":[["yellow",4]]}},{"id":"s3-005","name":"망나뇽","tier":3,"points":5,"color":"black","bonusN":1,"img":"../assets/stage3/dragonite.png","cost":[["blue",3],["pink",7]],"master":false,"line":"dragonite","evo":null},{"id":"s1-011","name":"꼬마돌","tier":1,"points":0,"color":"blue","bonusN":1,"img":"../assets/stage1/geodude.png","cost":[["red",1],["black",1],["pink",1],["yellow",1]],"master":false,"line":"golem","evo":{"name":"데구리","img":"../assets/stage2/graveler.png","color":"pink","cost":[["pink",3]]}},{"id":"s1-012","name":"꼬마돌","tier":1,"points":0,"color":"blue","bonusN":1,"img":"../assets/stage1/geodude.png","cost":[["red",2],["blue",1],["yellow",1]],"master":false,"line":"golem","evo":{"name":"데구리","img":"../assets/stage2/graveler.png","color":"pink","cost":[["pink",3]]}},{"id":"s2-011","name":"데구리","tier":2,"points":2,"color":"blue","bonusN":1,"img":"../assets/stage2/graveler.png","cost":[["black",1],["pink",4],["yellow",2]],"master":false,"line":"golem","evo":{"name":"딱구리","img":"../assets/stage3/golem.png","color":"black","cost":[["black",3]]}},{"id":"s2-012","name":"데구리","tier":2,"points":2,"color":"blue","bonusN":1,"img":"../assets/stage2/graveler.png","cost":[["red",2],["blue",5]],"master":false,"line":"golem","evo":{"name":"딱구리","img":"../assets/stage3/golem.png","color":"black","cost":[["black",3]]}},{"id":"s3-006","name":"딱구리","tier":3,"points":4,"color":"blue","bonusN":1,"img":"../assets/stage3/golem.png","cost":[["red",4],["pink",6]],"master":false,"line":"golem","evo":null},{"id":"s1-013","name":"고오스","tier":1,"points":0,"color":"yellow","bonusN":1,"img":"../assets/stage1/gastly.png","cost":[["red",1],["blue",1],["black",1],["pink",1]],"master":false,"line":"gengar","evo":{"name":"고우스트","img":"../assets/stage2/haunter.png","color":"black","cost":[["black",3]]}},{"id":"s1-014","name":"고오스","tier":1,"points":0,"color":"yellow","bonusN":1,"img":"../assets/stage1/gastly.png","cost":[["red",1],["black",1],["pink",2]],"master":false,"line":"gengar","evo":{"name":"고우스트","img":"../assets/stage2/haunter.png","color":"black","cost":[["black",3]]}},{"id":"s2-013","name":"고우스트","tier":2,"points":2,"color":"yellow","bonusN":1,"img":"../assets/stage2/haunter.png","cost":[["red",1],["black",4],["pink",2]],"master":false,"line":"gengar","evo":{"name":"팬텀","img":"../assets/stage3/gengar.png","color":"red","cost":[["red",3]]}},{"id":"s2-014","name":"고우스트","tier":2,"points":2,"color":"yellow","bonusN":1,"img":"../assets/stage2/haunter.png","cost":[["blue",2],["yellow",5]],"master":false,"line":"gengar","evo":{"name":"팬텀","img":"../assets/stage3/gengar.png","color":"red","cost":[["red",3]]}},{"id":"s3-007","name":"팬텀","tier":3,"points":4,"color":"yellow","bonusN":1,"img":"../assets/stage3/gengar.png","cost":[["blue",4],["black",6]],"master":false,"line":"gengar","evo":null},{"id":"s1-015","name":"알통몬","tier":1,"points":0,"color":"red","bonusN":1,"img":"../assets/stage1/machop.png","cost":[["blue",1],["black",1],["pink",1],["yellow",1]],"master":false,"line":"machamp","evo":{"name":"근육몬","img":"../assets/stage2/machoke.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s1-016","name":"알통몬","tier":1,"points":0,"color":"red","bonusN":1,"img":"../assets/stage1/machop.png","cost":[["black",1],["pink",1],["yellow",2]],"master":false,"line":"machamp","evo":{"name":"근육몬","img":"../assets/stage2/machoke.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s2-015","name":"근육몬","tier":2,"points":2,"color":"red","bonusN":1,"img":"../assets/stage2/machoke.png","cost":[["blue",1],["black",2],["yellow",4]],"master":false,"line":"machamp","evo":{"name":"괴력몬","img":"../assets/stage3/machamp.png","color":"blue","cost":[["blue",3]]}},{"id":"s2-016","name":"근육몬","tier":2,"points":2,"color":"red","bonusN":1,"img":"../assets/stage2/machoke.png","cost":[["red",5],["pink",2]],"master":false,"line":"machamp","evo":{"name":"괴력몬","img":"../assets/stage3/machamp.png","color":"blue","cost":[["blue",3]]}},{"id":"s3-008","name":"괴력몬","tier":3,"points":4,"color":"red","bonusN":1,"img":"../assets/stage3/machamp.png","cost":[["pink",4],["yellow",6]],"master":false,"line":"machamp","evo":null},{"id":"s1-017","name":"캐터피","tier":1,"points":0,"color":"pink","bonusN":1,"img":"../assets/stage1/caterpie.png","cost":[["red",1],["blue",1],["black",1],["yellow",1]],"master":false,"line":"butterfree","evo":{"name":"단데기","img":"../assets/stage2/metapod.png","color":"blue","cost":[["blue",3]]}},{"id":"s1-018","name":"캐터피","tier":1,"points":0,"color":"pink","bonusN":1,"img":"../assets/stage1/caterpie.png","cost":[["blue",1],["black",2],["yellow",1]],"master":false,"line":"butterfree","evo":{"name":"단데기","img":"../assets/stage2/metapod.png","color":"blue","cost":[["blue",3]]}},{"id":"s2-017","name":"단데기","tier":2,"points":2,"color":"pink","bonusN":1,"img":"../assets/stage2/metapod.png","cost":[["red",2],["blue",4],["yellow",1]],"master":false,"line":"butterfree","evo":{"name":"버터플","img":"../assets/stage3/butterfree.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s2-018","name":"단데기","tier":2,"points":2,"color":"pink","bonusN":1,"img":"../assets/stage2/metapod.png","cost":[["black",2],["pink",5]],"master":false,"line":"butterfree","evo":{"name":"버터플","img":"../assets/stage3/butterfree.png","color":"yellow","cost":[["yellow",3]]}},{"id":"s3-009","name":"버터플","tier":3,"points":4,"color":"pink","bonusN":1,"img":"../assets/stage3/butterfree.png","cost":[["blue",6],["black",4]],"master":false,"line":"butterfree","evo":null},{"id":"s1-019","name":"뿔충이","tier":1,"points":0,"color":"black","bonusN":1,"img":"../assets/stage1/weedle.png","cost":[["red",1],["blue",1],["pink",1],["yellow",1]],"master":false,"line":"beedrill","evo":{"name":"딱충이","img":"../assets/stage2/kakuna.png","color":"red","cost":[["red",3]]}},{"id":"s1-020","name":"뿔충이","tier":1,"points":0,"color":"black","bonusN":1,"img":"../assets/stage1/weedle.png","cost":[["red",1],["blue",2],["pink",1]],"master":false,"line":"beedrill","evo":{"name":"딱충이","img":"../assets/stage2/kakuna.png","color":"red","cost":[["red",3]]}},{"id":"s2-019","name":"딱충이","tier":2,"points":2,"color":"black","bonusN":1,"img":"../assets/stage2/kakuna.png","cost":[["red",4],["blue",2],["pink",1]],"master":false,"line":"beedrill","evo":{"name":"독침붕","img":"../assets/stage3/beedrill.png","color":"pink","cost":[["pink",3]]}},{"id":"s2-020","name":"딱충이","tier":2,"points":2,"color":"black","bonusN":1,"img":"../assets/stage2/kakuna.png","cost":[["black",5],["yellow",2]],"master":false,"line":"beedrill","evo":{"name":"독침붕","img":"../assets/stage3/beedrill.png","color":"pink","cost":[["pink",3]]}},{"id":"s3-010","name":"독침붕","tier":3,"points":4,"color":"black","bonusN":1,"img":"../assets/stage3/beedrill.png","cost":[["red",6],["yellow",4]],"master":false,"line":"beedrill","evo":null},{"id":"s1-021","name":"구구","tier":1,"points":0,"color":"blue","bonusN":1,"img":"../assets/stage1/pidgey.png","cost":[["black",1],["yellow",2]],"master":false,"line":"pidgeot","evo":{"name":"피죤","img":"../assets/stage2/pidgeotto.png","color":"red","cost":[["red",2]]}},{"id":"s1-022","name":"구구","tier":1,"points":0,"color":"blue","bonusN":1,"img":"../assets/stage1/pidgey.png","cost":[["red",2],["blue",2]],"master":false,"line":"pidgeot","evo":{"name":"피죤","img":"../assets/stage2/pidgeotto.png","color":"red","cost":[["red",2]]}},{"id":"s1-023","name":"구구","tier":1,"points":0,"color":"blue","bonusN":1,"img":"../assets/stage1/pidgey.png","cost":[["pink",3]],"master":false,"line":"pidgeot","evo":{"name":"피죤","img":"../assets/stage2/pidgeotto.png","color":"red","cost":[["red",2]]}},{"id":"s2-021","name":"피죤","tier":2,"points":1,"color":"blue","bonusN":1,"img":"../assets/stage2/pidgeotto.png","cost":[["blue",3],["black",2],["pink",2]],"master":false,"line":"pidgeot","evo":{"name":"피죤투","img":"../assets/stage3/pidgeot.png","color":"red","cost":[["red",4]]}},{"id":"s2-022","name":"피죤","tier":2,"points":1,"color":"blue","bonusN":1,"img":"../assets/stage2/pidgeotto.png","cost":[["red",3],["pink",2],["yellow",2]],"master":false,"line":"pidgeot","evo":{"name":"피죤투","img":"../assets/stage3/pidgeot.png","color":"red","cost":[["red",4]]}},{"id":"s3-011","name":"피죤투","tier":3,"points":3,"color":"blue","bonusN":1,"img":"../assets/stage3/pidgeot.png","cost":[["blue",5],["black",2],["yellow",2]],"master":false,"line":"pidgeot","evo":null},{"id":"s1-024","name":"니드런","tier":1,"points":0,"color":"yellow","bonusN":1,"img":"../assets/stage1/nidoran.png","cost":[["red",2],["pink",1]],"master":false,"line":"nidoqueen","evo":{"name":"니드리나","img":"../assets/stage2/nidorina.png","color":"blue","cost":[["blue",2]]}},{"id":"s1-025","name":"니드런","tier":1,"points":0,"color":"yellow","bonusN":1,"img":"../assets/stage1/nidoran.png","cost":[["blue",2],["yellow",2]],"master":false,"line":"nidoqueen","evo":{"name":"니드리나","img":"../assets/stage2/nidorina.png","color":"blue","cost":[["blue",2]]}},{"id":"s1-026","name":"니드런","tier":1,"points":0,"color":"yellow","bonusN":1,"img":"../assets/stage1/nidoran.png","cost":[["black",3]],"master":false,"line":"nidoqueen","evo":{"name":"니드리나","img":"../assets/stage2/nidorina.png","color":"blue","cost":[["blue",2]]}},{"id":"s2-023","name":"니드리나","tier":2,"points":1,"color":"yellow","bonusN":1,"img":"../assets/stage2/nidorina.png","cost":[["red",2],["pink",2],["yellow",3]],"master":false,"line":"nidoqueen","evo":{"name":"니드퀸","img":"../assets/stage3/nidoqueen.png","color":"blue","cost":[["blue",4]]}},{"id":"s2-024","name":"니드리나","tier":2,"points":1,"color":"yellow","bonusN":1,"img":"../assets/stage2/nidorina.png","cost":[["blue",3],["black",2],["pink",2]],"master":false,"line":"nidoqueen","evo":{"name":"니드퀸","img":"../assets/stage3/nidoqueen.png","color":"blue","cost":[["blue",4]]}},{"id":"s3-012","name":"니드퀸","tier":3,"points":3,"color":"yellow","bonusN":1,"img":"../assets/stage3/nidoqueen.png","cost":[["red",2],["pink",2],["yellow",5]],"master":false,"line":"nidoqueen","evo":null},{"id":"s1-027","name":"모다피","tier":1,"points":0,"color":"red","bonusN":1,"img":"../assets/stage1/bellsprout.png","cost":[["blue",1],["black",2]],"master":false,"line":"victreebel","evo":{"name":"우츠동","img":"../assets/stage2/weepinbell.png","color":"pink","cost":[["pink",2]]}},{"id":"s1-028","name":"모다피","tier":1,"points":0,"color":"red","bonusN":1,"img":"../assets/stage1/bellsprout.png","cost":[["red",2],["pink",2]],"master":false,"line":"victreebel","evo":{"name":"우츠동","img":"../assets/stage2/weepinbell.png","color":"pink","cost":[["pink",2]]}},{"id":"s1-029","name":"모다피","tier":1,"points":0,"color":"red","bonusN":1,"img":"../assets/stage1/bellsprout.png","cost":[["yellow",3]],"master":false,"line":"victreebel","evo":{"name":"우츠동","img":"../assets/stage2/weepinbell.png","color":"pink","cost":[["pink",2]]}},{"id":"s2-025","name":"우츠동","tier":2,"points":1,"color":"red","bonusN":1,"img":"../assets/stage2/weepinbell.png","cost":[["red",3],["black",2],["yellow",2]],"master":false,"line":"victreebel","evo":{"name":"우츠보트","img":"../assets/stage3/victreebel.png","color":"pink","cost":[["pink",4]]}},{"id":"s2-026","name":"우츠동","tier":2,"points":1,"color":"red","bonusN":1,"img":"../assets/stage2/weepinbell.png","cost":[["black",2],["pink",3],["yellow",2]],"master":false,"line":"victreebel","evo":{"name":"우츠보트","img":"../assets/stage3/victreebel.png","color":"pink","cost":[["pink",4]]}},{"id":"s3-013","name":"우츠보트","tier":3,"points":3,"color":"red","bonusN":1,"img":"../assets/stage3/victreebel.png","cost":[["red",5],["blue",2],["black",2]],"master":false,"line":"victreebel","evo":null},{"id":"s1-030","name":"발챙이","tier":1,"points":0,"color":"pink","bonusN":1,"img":"../assets/stage1/poliwag.png","cost":[["blue",2],["yellow",1]],"master":false,"line":"poliwrath","evo":{"name":"슈륙챙이","img":"../assets/stage2/poliwhirl.png","color":"black","cost":[["black",2]]}},{"id":"s1-031","name":"발챙이","tier":1,"points":0,"color":"pink","bonusN":1,"img":"../assets/stage1/poliwag.png","cost":[["black",2],["pink",2]],"master":false,"line":"poliwrath","evo":{"name":"슈륙챙이","img":"../assets/stage2/poliwhirl.png","color":"black","cost":[["black",2]]}},{"id":"s1-032","name":"발챙이","tier":1,"points":0,"color":"pink","bonusN":1,"img":"../assets/stage1/poliwag.png","cost":[["red",3]],"master":false,"line":"poliwrath","evo":{"name":"슈륙챙이","img":"../assets/stage2/poliwhirl.png","color":"black","cost":[["black",2]]}},{"id":"s2-027","name":"슈륙챙이","tier":2,"points":1,"color":"pink","bonusN":1,"img":"../assets/stage2/poliwhirl.png","cost":[["blue",2],["pink",3],["yellow",2]],"master":false,"line":"poliwrath","evo":{"name":"강챙이","img":"../assets/stage3/poliwrath.png","color":"black","cost":[["black",4]]}},{"id":"s2-028","name":"슈륙챙이","tier":2,"points":1,"color":"pink","bonusN":1,"img":"../assets/stage2/poliwhirl.png","cost":[["red",2],["blue",2],["black",3]],"master":false,"line":"poliwrath","evo":{"name":"강챙이","img":"../assets/stage3/poliwrath.png","color":"black","cost":[["black",4]]}},{"id":"s3-014","name":"강챙이","tier":3,"points":3,"color":"pink","bonusN":1,"img":"../assets/stage3/poliwrath.png","cost":[["red",2],["pink",5],["yellow",2]],"master":false,"line":"poliwrath","evo":null},{"id":"s1-033","name":"뚜벅초","tier":1,"points":0,"color":"black","bonusN":1,"img":"../assets/stage1/oddish.png","cost":[["red",1],["pink",2]],"master":false,"line":"vileplume","evo":{"name":"냄새꼬","img":"../assets/stage2/gloom.png","color":"yellow","cost":[["yellow",2]]}},{"id":"s1-034","name":"뚜벅초","tier":1,"points":0,"color":"black","bonusN":1,"img":"../assets/stage1/oddish.png","cost":[["black",2],["yellow",2]],"master":false,"line":"vileplume","evo":{"name":"냄새꼬","img":"../assets/stage2/gloom.png","color":"yellow","cost":[["yellow",2]]}},{"id":"s1-035","name":"뚜벅초","tier":1,"points":0,"color":"black","bonusN":1,"img":"../assets/stage1/oddish.png","cost":[["blue",3]],"master":false,"line":"vileplume","evo":{"name":"냄새꼬","img":"../assets/stage2/gloom.png","color":"yellow","cost":[["yellow",2]]}},{"id":"s2-029","name":"냄새꼬","tier":2,"points":1,"color":"black","bonusN":1,"img":"../assets/stage2/gloom.png","cost":[["red",2],["blue",2],["black",3]],"master":false,"line":"vileplume","evo":{"name":"라플레시아","img":"../assets/stage3/vileplume.png","color":"yellow","cost":[["yellow",4]]}},{"id":"s2-030","name":"냄새꼬","tier":2,"points":1,"color":"black","bonusN":1,"img":"../assets/stage2/gloom.png","cost":[["red",2],["blue",2],["yellow",3]],"master":false,"line":"vileplume","evo":{"name":"라플레시아","img":"../assets/stage3/vileplume.png","color":"yellow","cost":[["yellow",4]]}},{"id":"s3-015","name":"라플레시아","tier":3,"points":3,"color":"black","bonusN":1,"img":"../assets/stage3/vileplume.png","cost":[["blue",2],["black",5],["pink",2]],"master":false,"line":"vileplume","evo":null},{"id":"rare-001","name":"라플라스","tier":"rare","points":0,"color":"red","bonusN":2,"img":"../assets/rare/lapras.png","cost":[["blue",2],["black",3]],"master":true,"line":null,"evo":null},{"id":"rare-002","name":"메타몽","tier":"rare","points":0,"color":"blue","bonusN":2,"img":"../assets/rare/ditto.png","cost":[["pink",3],["yellow",2]],"master":true,"line":null,"evo":null},{"id":"rare-003","name":"프테라","tier":"rare","points":0,"color":"yellow","bonusN":2,"img":"../assets/rare/aerodactyl.png","cost":[["blue",3],["pink",2]],"master":true,"line":null,"evo":null},{"id":"rare-004","name":"잠만보","tier":"rare","points":0,"color":"pink","bonusN":2,"img":"../assets/rare/snorlax.png","cost":[["red",3],["black",2]],"master":true,"line":null,"evo":null},{"id":"rare-005","name":"이브이","tier":"rare","points":0,"color":"black","bonusN":2,"img":"../assets/rare/eevee.png","cost":[["red",2],["yellow",3]],"master":true,"line":null,"evo":null},{"id":"leg-001","name":"썬더","tier":"legendary","points":2,"color":"red","bonusN":2,"img":"../assets/rare/zapdos.png","cost":[["blue",3],["pink",3],["yellow",3]],"master":true,"line":null,"evo":null},{"id":"leg-002","name":"뮤","tier":"legendary","points":2,"color":"blue","bonusN":2,"img":"../assets/rare/mew.png","cost":[["red",3],["black",3],["yellow",3]],"master":true,"line":null,"evo":null},{"id":"leg-003","name":"프리져","tier":"legendary","points":2,"color":"yellow","bonusN":2,"img":"../assets/rare/articuno.png","cost":[["red",3],["black",3],["pink",3]],"master":true,"line":null,"evo":null},{"id":"leg-004","name":"파이어","tier":"legendary","points":2,"color":"pink","bonusN":2,"img":"../assets/rare/moltres.png","cost":[["blue",3],["black",3],["yellow",3]],"master":true,"line":null,"evo":null},{"id":"leg-005","name":"뮤츠","tier":"legendary","points":2,"color":"black","bonusN":2,"img":"../assets/rare/mewtwo.png","cost":[["red",3],["blue",3],["pink",3]],"master":true,"line":null,"evo":null}],"lines":[{"key":"charizard","label":"파이리 → 리자드 → 리자몽","color":"blue","order":0},{"key":"venusaur","label":"이상해씨 → 이상해풀 → 이상해꽃","color":"yellow","order":1},{"key":"blastoise","label":"꼬부기 → 어니부기 → 거북왕","color":"red","order":2},{"key":"alakazam","label":"케이시 → 윤겔라 → 후딘","color":"pink","order":3},{"key":"dragonite","label":"미뇽 → 신뇽 → 망나뇽","color":"black","order":4},{"key":"golem","label":"꼬마돌 → 데구리 → 딱구리","color":"blue","order":5},{"key":"gengar","label":"고오스 → 고우스트 → 팬텀","color":"yellow","order":6},{"key":"machamp","label":"알통몬 → 근육몬 → 괴력몬","color":"red","order":7},{"key":"butterfree","label":"캐터피 → 단데기 → 버터플","color":"pink","order":8},{"key":"beedrill","label":"뿔충이 → 딱충이 → 독침붕","color":"black","order":9},{"key":"pidgeot","label":"구구 → 피죤 → 피죤투","color":"blue","order":10},{"key":"nidoqueen","label":"니드런 → 니드리나 → 니드퀸","color":"yellow","order":11},{"key":"victreebel","label":"모다피 → 우츠동 → 우츠보트","color":"red","order":12},{"key":"poliwrath","label":"발챙이 → 슈륙챙이 → 강챙이","color":"pink","order":13},{"key":"vileplume","label":"뚜벅초 → 냄새꼬 → 라플레시아","color":"black","order":14}],"ball":{"red":"../assets/balls/monsterball.png","blue":"../assets/balls/superball.png","black":"../assets/balls/hyperball.png","pink":"../assets/balls/healball.png","yellow":"../assets/balls/quickball.png","gold":"../assets/balls/masterball.png"},"colorLabel":{"red":"빨강","blue":"파랑","black":"검정","pink":"분홍","yellow":"노랑","gold":"마스터볼"},"tiers":[{"key":"1","label":"1성","desc":"1단계 · 보너스 1 · 진화 가능"},{"key":"2","label":"2성","desc":"2단계 · 보너스 1 · 진화 가능"},{"key":"3","label":"3성","desc":"3단계 · 보너스 1 · 최종 진화"},{"key":"rare","label":"희귀","desc":"보너스 2 · 마스터볼 1 필수 · 보관 불가"},{"key":"legendary","label":"전설","desc":"보너스 2 · 2점 · 마스터볼 1 필수 · 보관 불가"}]};
+const $ = (id) => document.getElementById(id);
+
+const TIER_LABEL = Object.fromEntries(DATA.tiers.map((t) => [t.key, t.label]));
+const TIER_ORDER = DATA.tiers.map((t) => t.key);
+const COLOR_ORDER = ["red", "yellow", "blue", "pink", "black"];
+const LINE_BY_KEY = Object.fromEntries(DATA.lines.map((l) => [l.key, l]));
+
+const state = { group: "tier", tier: "all", color: "all", q: "" };
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+function img(src, cls, alt) {
+  const n = document.createElement("img");
+  n.src = src; n.loading = "lazy"; n.alt = alt || "";
+  if (cls) n.className = cls;
+  return n;
+}
+
+// ── 카드 렌더 ──────────────────────────────────────────
+function cardEl(c) {
+  const root = el("article", "pc c-" + c.color + " t-" + c.tier);
+  root.title = c.name + " (" + c.id + ") · " + TIER_LABEL[c.tier] + " · " + c.points + "점 · "
+    + DATA.colorLabel[c.color] + " 보너스 " + c.bonusN;
+
+  const head = el("div", "pc-head");
+  head.append(el("div", "pc-pts", c.points ? String(c.points) : ""));
+
+  if (c.evo) {
+    const evo = el("div", "pc-evo " + c.evo.color);
+    evo.title = "진화 → " + c.evo.name;
+    evo.append(img(c.evo.img, "evo-img", c.evo.name), el("span", "arr", "▼"));
+    const cost = el("div", "evo-cost");
+    for (const [col, n] of c.evo.cost) {
+      cost.append(document.createTextNode(String(n)), img(DATA.ball[col], "", DATA.colorLabel[col]));
+    }
+    evo.append(cost);
+    head.append(evo);
+  } else {
+    head.append(el("div", "pc-evo-spacer"));
+  }
+
+  const bonus = el("div", "pc-bonus");
+  for (let i = 0; i < c.bonusN; i++) bonus.append(img(DATA.ball[c.color], "", DATA.colorLabel[c.color]));
+  head.append(bonus);
+
+  const art = el("div", "pc-art");
+  art.append(img(c.img, "", c.name));
+
+  const cost = el("div", "pc-cost");
+  for (const [col, n] of c.cost) {
+    const chip = el("div", "pc-chip " + col);
+    chip.title = DATA.colorLabel[col] + " " + n;
+    chip.append(el("span", "", String(n)), img(DATA.ball[col], "", ""));
+    cost.append(chip);
+  }
+  if (c.master) {
+    const chip = el("div", "pc-chip gold");
+    chip.title = "마스터볼 1개 필수";
+    chip.append(el("span", "", "1"), img(DATA.ball.gold, "", "마스터볼"));
+    cost.append(chip);
+  }
+
+  root.append(head, art, cost, el("div", "pc-name", c.name));
+  return root;
+}
+
+// ── 필터 · 그룹 ────────────────────────────────────────
+function visible() {
+  const q = state.q.trim();
+  return DATA.cards.filter((c) =>
+    (state.tier === "all" || String(c.tier) === state.tier) &&
+    (state.color === "all" || c.color === state.color) &&
+    (!q || c.name.includes(q) || c.id.includes(q)));
+}
+
+function groupsOf(list) {
+  if (state.group === "none") return [{ title: null, cards: list }];
+  if (state.group === "tier") {
+    return TIER_ORDER
+      .map((t) => {
+        const meta = DATA.tiers.find((x) => x.key === t);
+        return { title: meta.label, meta: meta.desc, cards: list.filter((c) => String(c.tier) === t) };
+      })
+      .filter((g) => g.cards.length);
+  }
+  if (state.group === "color") {
+    return COLOR_ORDER
+      .map((col) => ({
+        title: DATA.colorLabel[col],
+        swatch: col,
+        meta: "보너스 색 " + DATA.colorLabel[col],
+        cards: list.filter((c) => c.color === col),
+      }))
+      .filter((g) => g.cards.length);
+  }
+  // 진화 라인별 — 라인 없는 희귀·전설은 마지막에 따로 묶는다
+  const out = DATA.lines
+    .map((l) => ({
+      title: l.label,
+      swatch: l.color,
+      meta: DATA.colorLabel[l.color] + " 라인",
+      cards: list.filter((c) => c.line === l.key)
+        .sort((a, b) => TIER_ORDER.indexOf(String(a.tier)) - TIER_ORDER.indexOf(String(b.tier))),
+    }))
+    .filter((g) => g.cards.length);
+  const noLine = list.filter((c) => !c.line);
+  if (noLine.length) out.push({ title: "진화 없음 (희귀 · 전설)", meta: "마스터볼 1 필수 · 보관 불가", cards: noLine });
+  return out;
+}
+
+function render() {
+  const list = visible();
+  const out = $("out");
+  out.textContent = "";
+
+  $("count").textContent = list.length === DATA.cards.length
+    ? DATA.cards.length + "장 전체"
+    : list.length + " / " + DATA.cards.length + "장";
+
+  if (!list.length) {
+    out.append(el("p", "empty", "조건에 맞는 카드가 없습니다."));
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const g of groupsOf(list)) {
+    const sec = el("section", "group");
+    if (g.title) {
+      const head = el("div", "group-head");
+      if (g.swatch) {
+        const sw = el("span", "swatch");
+        sw.style.background = "rgb(var(--ball-" + g.swatch + "-rgb))";
+        head.append(sw);
+      }
+      head.append(el("h2", "", g.title));
+      if (g.meta) head.append(el("span", "meta", g.meta));
+      head.append(el("span", "cnt", g.cards.length + "장"));
+      sec.append(head);
+    }
+    const grid = el("div", "grid");
+    for (const c of g.cards) grid.append(cardEl(c));
+    sec.append(grid);
+    frag.append(sec);
+  }
+  out.append(frag);
+}
+
+// ── 컨트롤 구성 ────────────────────────────────────────
+function chipBar(host, key, items) {
+  for (const it of items) {
+    const b = el("button", "chip");
+    b.type = "button";
+    b.dataset.v = it.v;
+    if (it.dot) b.append(el("span", "dot " + it.dot));
+    b.append(document.createTextNode(it.label));
+    if (it.n != null) b.append(el("span", "n", String(it.n)));
+    b.setAttribute("aria-pressed", String(state[key] === it.v));
+    b.addEventListener("click", () => {
+      state[key] = it.v;
+      for (const s of host.children) s.setAttribute("aria-pressed", String(s.dataset.v === it.v));
+      render();
+    });
+    host.append(b);
+  }
+}
+
+const countBy = (fn, v) => DATA.cards.filter((c) => fn(c) === v).length;
+
+chipBar($("f-group"), "group", [
+  { v: "tier", label: "등급별" },
+  { v: "color", label: "색깔별" },
+  { v: "line", label: "진화 라인별" },
+  { v: "none", label: "전체 한 눈에" },
+]);
+
+chipBar($("f-tier"), "tier", [
+  { v: "all", label: "전체", n: DATA.cards.length },
+  ...DATA.tiers.map((t) => ({ v: t.key, label: t.label, n: countBy((c) => String(c.tier), t.key) })),
+]);
+
+chipBar($("f-color"), "color", [
+  { v: "all", label: "전체", n: DATA.cards.length },
+  ...COLOR_ORDER.map((col) => ({
+    v: col, label: DATA.colorLabel[col], dot: col, n: countBy((c) => c.color, col),
+  })),
+]);
+
+$("f-search").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+
+for (const t of DATA.tiers) {
+  const tr = document.createElement("tr");
+  tr.append(el("td", "", t.label), el("td", "", countBy((c) => String(c.tier), t.key) + "장"), el("td", "", t.desc));
+  $("legend-tier").append(tr);
+}
+
+// ── 테마 ───────────────────────────────────────────────
+const themeBtn = $("theme-btn");
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  themeBtn.textContent = t === "dark" ? "라이트 모드" : "다크 모드";
+  try { localStorage.setItem("cardex-theme", t); } catch (_) {}
+}
+setTheme((() => {
+  try { return localStorage.getItem("cardex-theme") || "dark"; } catch (_) { return "dark"; }
+})());
+themeBtn.addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
+
+render();
+</script>
+</body>
+</html>

@@ -42,3 +42,5 @@
 - [STRATEGY.md](STRATEGY.md) — AI 전략 정의 + 사용자 기본 정책(플레이아웃용).
  - [AI_PLAN.md](AI_PLAN.md) — AI 강화 로드맵(자기대국 튜닝 → MCTS → 신경망) + 치트 모드 계획.
  - [assets/ASSETS.md](assets/ASSETS.md) — 이미지 리소스 규칙·매니페스트.
+ - [docs/cardex.html](docs/cardex.html) — 카드 도감(전체 90장, 등급·색·진화 라인별). `npm run docs:cardex` 로 `src/data/cards.ts` 에서 생성 — 수기 편집 금지.
+ - [docs/ai-analysis.html](docs/ai-analysis.html) — MCTS 분석·승리 전략 비전공자용 해설.
