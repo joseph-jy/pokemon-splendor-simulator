@@ -197,6 +197,8 @@ button, input, select, textarea {
 .fa-trophy::before { content: "★"; }
 .fa-bookmark::before { content: "▮"; }
 .fa-robot::before { content: "AI"; font-size: 0.75em; }
+.fa-xmark::before { content: "✕"; }
+.fa-keyboard::before { content: "⌨"; }
 .fa-wand-magic-sparkles::before { content: "✦"; }
 .fa-spinner::before { content: "◌"; }
 .fa-spin { animation: fa-spin 1s linear infinite; }
@@ -297,6 +299,8 @@ button, input, select, textarea {
 }
 .prob-item.me { outline: 2px solid #ffcb05; }
 .prob-item.current { outline: 2px solid #22c55e; }
+.prob-item.clickable { cursor: pointer; }
+.prob-item.clickable:hover { background: rgba(255,255,255,0.12); }
 .prob-bar-track {
   width: 72px;
   height: 8px;
@@ -1106,6 +1110,100 @@ button, input, select, textarea {
   align-items: center;
   justify-content: center;
   z-index: 50;
+}
+
+/* ── 보유 현황 모달 (단축키 1~4) ───────────────────── */
+.cards-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+  z-index: 60;
+}
+.cards-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 620px);
+  max-height: 100%;
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  overflow: hidden;
+}
+.cards-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cards-modal-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.cards-modal-pts {
+  color: #ffcb05;
+  font-size: 15px;
+}
+.cards-modal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.cards-modal-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.cards-modal-tab:hover { background: rgba(255,255,255,0.14); }
+.cards-modal-tab.active {
+  background: rgba(255,203,5,0.16);
+  border-color: #ffcb05;
+}
+.cards-modal-tab-key {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.16);
+}
+.cards-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+.cards-modal-section-title {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  margin-bottom: 4px;
+}
+.cards-modal-table { width: auto; min-width: 240px; }
+.cards-modal-table th { font-size: 10px; opacity: 0.6; }
+.cards-modal-foot {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 11px;
+  opacity: 0.5;
 }
 
 /* ── Tooltip ──────────────────────────────────────── */

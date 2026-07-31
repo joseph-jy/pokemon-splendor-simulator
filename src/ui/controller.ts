@@ -72,6 +72,8 @@ export class Controller {
   private ballPickColors: Color[] = [];
   private ballPickActive = false;
   private playerNames: string[] = [];
+  /** 1~4 단축키로 열린 보유 현황 모달의 플레이어 인덱스. null 이면 닫힘. */
+  private cardsModalPlayer: number | null = null;
   /** 직전 게임 인원수(다시 하기 기본값). */
   private numPlayers = DEFAULT_PLAYERS;
   /** 게임 세대 번호. 새 게임/인원 선택 시 증가시켜 이전 게임의 AI 타이머를 무효화한다. */
@@ -97,12 +99,53 @@ export class Controller {
       this.winRatesStale = false;
       this.renderProbs();
     };
+    document.addEventListener("keydown", (e) => this.onKeyDown(e));
+  }
+
+  // ── Keyboard shortcuts ──
+
+  /** 1~4: 해당 플레이어 보유 현황 모달 토글(같은 키 재입력 시 닫힘). Esc: 닫기. */
+  private onKeyDown(e: KeyboardEvent): void {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+
+    if (e.key === "Escape") {
+      if (this.cardsModalPlayer !== null) {
+        e.preventDefault();
+        this.closeCardsModal();
+      }
+      return;
+    }
+
+    // 숫자 키(상단 열 + 넘패드) 만 처리
+    const digit = /^Digit([1-9])$|^Numpad([1-9])$/.exec(e.code);
+    if (!digit) return;
+    const index = Number(digit[1] ?? digit[2]) - 1;
+    e.preventDefault();
+    if (this.phase === "setup") return;
+    if (index >= this.state.numPlayers) return;
+    this.toggleCardsModal(index);
+  }
+
+  private toggleCardsModal(index: number): void {
+    hideTooltip();
+    this.cardsModalPlayer = this.cardsModalPlayer === index ? null : index;
+    this.render();
+  }
+
+  private closeCardsModal(): void {
+    if (this.cardsModalPlayer === null) return;
+    hideTooltip();
+    this.cardsModalPlayer = null;
+    this.render();
   }
 
   /** 인원 선택 화면. 게임 진행 중 호출하면 진행 중인 게임은 폐기된다. */
   showSetup(): void {
     this.gameSeq++; // 진행 중이던 게임의 예약된 AI 턴 무효화
     this.activeAiTurnRequestId = 0; // 계산 중이던 Worker AI 응답도 무효화
+    this.cardsModalPlayer = null;
     this.phase = "setup";
     this.render();
   }
@@ -127,6 +170,7 @@ export class Controller {
     this.aiLog = [];
     this.ballPickColors = [];
     this.ballPickActive = false;
+    this.cardsModalPlayer = null;
     this.render();
     this.startTurn();
   }
@@ -567,6 +611,110 @@ export class Controller {
     if (this.state.ended) {
       this.root.append(this.renderEndOverlay());
     }
+    if (this.cardsModalPlayer !== null && this.cardsModalPlayer < this.state.numPlayers) {
+      this.root.append(this.renderCardsModal(this.cardsModalPlayer));
+    }
+  }
+
+  // ── 보유 현황 모달 (단축키 1~4) ──
+
+  /** 플레이어 한 명의 볼·보너스·획득/보관 카드 전체를 크게 보여주는 모달. */
+  private renderCardsModal(index: number): HTMLElement {
+    const p = this.state.players[index]!;
+
+    // 플레이어 전환 탭 (숫자 키와 동일)
+    const tabs = el("div", { class: "cards-modal-tabs" });
+    for (let i = 0; i < this.state.numPlayers; i++) {
+      tabs.append(el("button", {
+        class: `cards-modal-tab${i === index ? " active" : ""}`,
+        title: `${i + 1} 키`,
+        onclick: () => this.toggleCardsModal(i),
+      }, [
+        el("span", { class: "cards-modal-tab-key" }, [String(i + 1)]),
+        this.playerName(i),
+      ]));
+    }
+
+    // 볼 보유
+    const ballsRow = el("div", { class: "flex flex-wrap gap-1" });
+    for (const c of COLORS) {
+      if (p.balls[c] > 0) ballsRow.append(ballChip(c, p.balls[c]));
+    }
+    if (p.balls.gold > 0) ballsRow.append(ballChip("gold", p.balls.gold));
+    if (handBallCount(p) === 0) ballsRow.append(el("span", { class: "text-xs opacity-40" }, ["없음"]));
+
+    // 색별 보너스/볼/총점수 표
+    const colorRows = COLORS.map((c) => el("tr", { class: this.colorTotal(p, c) === 0 ? "opacity-40" : "" }, [
+      el("td", { class: "flex items-center gap-1" }, [ballIcon(c, 18), COLOR_DISPLAY[c]]),
+      el("td", { class: "text-center" }, [String(p.bonus[c])]),
+      el("td", { class: "text-center" }, [String(p.balls[c])]),
+      el("td", { class: "text-center font-bold" }, [String(this.colorTotal(p, c))]),
+    ]));
+    const colorTable = el("table", { class: "table table-xs cards-modal-table" }, [
+      el("thead", {}, [el("tr", {}, [
+        el("th", {}, ["색"]), el("th", { class: "text-center" }, ["보너스"]),
+        el("th", { class: "text-center" }, ["볼"]), el("th", { class: "text-center" }, ["총점수"]),
+      ])]),
+      el("tbody", {}, colorRows),
+    ]);
+
+    // 획득 카드
+    const scored = p.scored.length > 0
+      ? this.renderScoredStacks(p.scored, 64, true)
+      : el("span", { class: "text-xs opacity-40" }, ["없음"]);
+
+    // 보관 카드 (이 시뮬레이터에서는 AI 보관 카드도 공개)
+    const reservedRow = el("div", { class: "card-scroll" });
+    for (const id of p.reserved) {
+      const card = cardOf(id);
+      const mc = makeMiniCard(card, { size: 64, label: true });
+      mc.addEventListener("mouseenter", () => showTooltip(mc, card));
+      mc.addEventListener("mouseleave", () => hideTooltip());
+      reservedRow.append(mc);
+    }
+    if (p.reserved.length === 0) reservedRow.append(el("span", { class: "text-xs opacity-40" }, ["없음"]));
+
+    const section = (icon: string, title: string, body: Node | string): HTMLElement =>
+      el("div", { class: "cards-modal-section" }, [
+        el("div", { class: "cards-modal-section-title" }, [
+          el("i", { class: `fa-solid ${icon} mr-1` }),
+          title,
+        ]),
+        body,
+      ]);
+
+    const dialog = el("div", { class: "cards-modal" }, [
+      el("div", { class: "cards-modal-head" }, [
+        el("div", { class: "cards-modal-title" }, [
+          el("i", { class: `fa-solid ${index === HUMAN_INDEX ? "fa-user" : "fa-robot"} mr-2` }),
+          this.playerName(index),
+          el("span", { class: "cards-modal-pts" }, [`${playerPoints(p)}점`]),
+          el("span", { class: "badge badge-sm badge-ghost" }, [`진화 ${p.evolutions}`]),
+          el("span", { class: "badge badge-sm badge-ghost" }, [`볼 ${handBallCount(p)}/${MAX_BALLS_IN_HAND}`]),
+        ]),
+        el("button", {
+          class: "btn btn-xs btn-ghost",
+          title: "닫기 (Esc)",
+          onclick: () => this.closeCardsModal(),
+        }, [el("i", { class: "fa-solid fa-xmark" })]),
+      ]),
+      tabs,
+      el("div", { class: "cards-modal-body" }, [
+        section("fa-coins", "보유 볼", ballsRow),
+        section("fa-shield-halved", "색별 보너스 · 총점수", colorTable),
+        section("fa-trophy", `획득 카드 (${p.scored.length})`, scored),
+        section("fa-bookmark", `보관 카드 (${p.reserved.length}/${MAX_RESERVED})`, reservedRow),
+      ]),
+      el("div", { class: "cards-modal-foot" }, [
+        `1~${this.state.numPlayers} 키로 플레이어 전환 · 같은 키 또는 Esc 로 닫기`,
+      ]),
+    ]);
+
+    const overlay = el("div", { class: "cards-modal-overlay" }, [dialog]);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) this.closeCardsModal();
+    });
+    return overlay;
   }
 
   // ── Setup screen: 인원 선택 ──
@@ -621,21 +769,7 @@ export class Controller {
   }
 
   private renderHeader(): HTMLElement {
-    const probs = el("div", { class: "prob-bars" });
-    for (let i = 0; i < this.state.numPlayers; i++) {
-      const p = this.state.players[i]!;
-      const pct = this.winRatesStale ? null : this.winRates[i];
-      const cls = ["prob-item"];
-      if (i === HUMAN_INDEX) cls.push("me");
-      if (i === this.state.currentPlayer && !this.state.ended) cls.push("current");
-      probs.append(el("div", { class: cls.join(" "), title: `${this.playerName(i)} ${playerPoints(p)}점` }, [
-        el("span", { class: "text-xs opacity-70" }, [this.playerName(i)]),
-        el("div", { class: "prob-bar-track" }, [
-          el("div", { class: "prob-bar-fill", style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
-        ]),
-        el("span", { class: "text-xs font-bold" }, [pct != null ? `${Math.round(pct * 100)}%` : "…"]),
-      ]));
-    }
+    const probs = this.buildProbsBars();
 
     const turnText = this.state.ended ? "게임 종료" : `${this.playerName(this.state.currentPlayer)} 차례`;
 
@@ -675,6 +809,13 @@ export class Controller {
       el("span", { class: "badge badge-ghost" }, [
         el("i", { class: "fa-solid fa-users mr-1" }),
         `${this.state.numPlayers}인`,
+      ]),
+      el("span", {
+        class: "badge badge-ghost",
+        title: "숫자 키로 해당 플레이어의 보유 볼·카드 현황을 열고, 같은 키로 닫습니다",
+      }, [
+        el("i", { class: "fa-solid fa-keyboard mr-1" }),
+        `1~${this.state.numPlayers} 보유 현황`,
       ]),
       logEl,
       analysisBtn,
@@ -1225,10 +1366,14 @@ export class Controller {
     for (let i = 0; i < this.state.numPlayers; i++) {
       const p = this.state.players[i]!;
       const pct = this.winRatesStale ? null : this.winRates[i];
-      const cls = ["prob-item"];
+      const cls = ["prob-item", "clickable"];
       if (i === HUMAN_INDEX) cls.push("me");
       if (i === this.state.currentPlayer && !this.state.ended) cls.push("current");
-      probs.append(el("div", { class: cls.join(" "), title: `${this.playerName(i)} ${playerPoints(p)}점` }, [
+      probs.append(el("div", {
+        class: cls.join(" "),
+        title: `${this.playerName(i)} ${playerPoints(p)}점 — 클릭 또는 ${i + 1} 키로 보유 현황 보기`,
+        onclick: () => this.toggleCardsModal(i),
+      }, [
         el("span", { class: "text-xs opacity-70" }, [this.playerName(i)]),
         el("div", { class: "prob-bar-track" }, [
           el("div", { class: "prob-bar-fill", style: pct != null ? `width:${Math.round(pct * 100)}%` : "width:0%" }),
