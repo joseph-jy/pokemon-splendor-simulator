@@ -4,21 +4,24 @@
 //   1) mode=mcts  — MCTS 1명 vs 기존 휴리스틱 AI (n-1)명. 기준선 1/n.
 //   2) mode=block — 견제(blockValue) 방식 어블레이션. 후보 1명(견제 모드 변형) vs 기준 AI (n-1)명.
 //   3) mode=stats — 기본 AI 자기대국의 인원별 게임 통계(턴 수·행동 분포·tier 분포 등).
+//   4) mode=noble — 희귀·전설 구매 성향 어블레이션. 후보 1명(구매 성향 변형) vs 기준 AI (n-1)명.
 //
 // 실행:
 //   npx vite-node scripts/eval-players.ts -- --mode=mcts  --players=2,3,4 --games=120 --iters=400
 //   npx vite-node scripts/eval-players.ts -- --mode=block --players=2,3,4 --games=480
 //   npx vite-node scripts/eval-players.ts -- --mode=stats --players=2,3,4 --games=300
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+//   npx vite-node scripts/eval-players.ts -- --mode=noble --players=4 --games=1200
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { availableParallelism } from "node:os";
-import { COLORS, isNoble } from "@/game/types";
-import { cardOf, createGame, playerPoints } from "@/game/state";
+import { COLORS, isNoble, type Color } from "@/game/types";
+import { cardOf, cloneGame, createGame, playerPoints } from "@/game/state";
 import { applyEvolution, applyMainAction, finishTurn, rankPlayers, winnerId } from "@/game/engine";
+import { legalMainActions } from "@/game/actions";
 import { WEIGHTS, type StrategyWeights } from "@/strategy/weights";
 import { DEFAULT_MCTS, chooseMctsTurn, type MctsOptions } from "@/strategy/mcts";
-import { chooseStrongTurn } from "@/strategy/policy";
+import { bestEvolution, chooseStrongTurn, goalSet } from "@/strategy/policy";
 import { ci95, playAgentSeries, strongAgent, type TurnAgent } from "@/tuning/arena";
 import { Rng } from "@/game/rng";
 
@@ -74,6 +77,52 @@ function weightsFor(mode: string): StrategyWeights {
   const entry = BLOCK_MODES[mode];
   if (!entry) throw new Error(`unknown block mode: ${mode}`);
   return { ...WEIGHTS, ...entry.over };
+}
+
+/* ──────────────── noble(희귀·전설) 구매 성향 어블레이션 ──────────────── */
+
+/**
+ * 기본 AI 는 희귀 카드 구매 기회의 95% 를 거절한다(전설은 51% 수락).
+ * "희귀·전설이 실제로 비효율인가, 아니면 휴리스틱이 저평가하는가"를 가리려면
+ * 가중치를 건드리는 대신 **구매 성향만** 바꾼 변형을 붙여 승률을 본다
+ * (noble 전용 가중치 항이 없으므로 `weightsFor` 방식으로는 표현이 안 된다).
+ */
+export const NOBLE_MODES: Record<string, string> = {
+  forced: "살 수 있으면 무조건 산다(상한 테스트)",
+  goalOnly: "보너스색이 내 목표 3색과 맞을 때만",
+  early: "목표 정렬 + 내 점수 12점 미만(할인이 일할 시간이 남았을 때)",
+  rareOnly: "희귀(0점·보너스2)만 — 점수를 포기하고 할인만 산다",
+  legOnly: "전설/환상(2점·보너스2)만",
+};
+
+/** noble 선호 변형. 조건에 맞는 noble 획득이 합법이면 그걸 고르고, 아니면 기본 정책. */
+function nobleAgent(mode: string): TurnAgent {
+  if (!NOBLE_MODES[mode]) throw new Error(`unknown noble mode: ${mode}`);
+  const base = strongAgent(WEIGHTS);
+  return (s, rng) => {
+    const p = s.players[s.currentPlayer]!;
+    const goal = goalSet(s, p);
+    const picks = legalMainActions(s).filter((a) => {
+      if (a.type !== "acquire") return false;
+      const card = cardOf(a.cardId);
+      if (!isNoble(card.tier)) return false;
+      if (mode === "rareOnly" && card.tier !== "rare") return false;
+      if (mode === "legOnly" && card.tier !== "legendary") return false;
+      if (mode === "forced") return true;
+      let aligned = false;
+      for (const c of COLORS) if ((card.bonus[c] ?? 0) > 0 && goal.includes(c as Color)) aligned = true;
+      if (!aligned) return false;
+      if (mode === "early" && playerPoints(p) >= 12) return false;
+      return true;
+    });
+    if (picks.length === 0) return base(s, rng);
+    // 여러 장 살 수 있으면 점수 높은 쪽
+    picks.sort((x, y) => cardOf((y as { cardId: string }).cardId).points - cardOf((x as { cardId: string }).cardId).points);
+    const action = picks[0]!;
+    const preview = cloneGame(s);
+    applyMainAction(preview, action);
+    return { action, evolution: bestEvolution(preview, WEIGHTS) };
+  };
 }
 
 /* ─────────────────────────── 게임 통계 ─────────────────────────── */
@@ -190,7 +239,7 @@ function playStatsMatch(numPlayers: number, seed: number, acc: StatsAcc, maxTurn
 /* ─────────────────────────── 잡 실행 ─────────────────────────── */
 
 interface Job {
-  kind: "mcts" | "block" | "stats";
+  kind: "mcts" | "block" | "stats" | "noble";
   players: number;
   games: number;
   seedBase: number;
@@ -229,6 +278,8 @@ function runJob(job: Job): JobResult {
         { ...DEFAULT_MCTS, iterations: job.iters ?? DEFAULT_MCTS.iterations },
         job.mctsw === "prev" ? PRE_TUNE_WEIGHTS : WEIGHTS,
       )
+    : job.kind === "noble"
+    ? nobleAgent(job.mode!)
     : strongAgent(weightsFor(job.mode!));
   const baseline = strongAgent(job.kind === "block" ? weightsFor(job.baseMode ?? "full") : WEIGHTS);
   const r = playAgentSeries(candidate, baseline, job.games, job.players, job.seedBase);
@@ -265,12 +316,21 @@ async function runJobsParallel(jobs: Job[], workers: number, tag: string): Promi
     });
     child.on("exit", (code) => {
       if (code !== 0) { reject(new Error(`worker ${si} exit ${code}`)); return; }
-      const out = JSON.parse(readFileSync(`${file}.out.json`, "utf8")) as JobResult[];
+      const outFile = `${file}.out.json`;
+      const out = JSON.parse(readFileSync(outFile, "utf8")) as JobResult[];
       shard.indices.forEach((orig, k) => { results[orig] = out[k]!; });
+      // 결과를 회수했으면 IPC 스크래치는 바로 지운다.
+      // 실패한 샤드(code !== 0)의 파일은 디버깅용으로 남긴다.
+      rmSync(file, { force: true });
+      rmSync(outFile, { force: true });
       done();
     });
     child.on("error", reject);
   })));
+  // 모든 샤드가 정리됐으면 빈 스크래치 디렉터리도 치운다.
+  try {
+    if (readdirSync(TMP_DIR).length === 0) rmSync(TMP_DIR, { recursive: true, force: true });
+  } catch { /* 이미 없으면 무시 */ }
   return results;
 }
 
@@ -377,6 +437,21 @@ async function main(): Promise<void> {
       const cell = summarize(n, undefined, rs);
       cells.push(cell);
       console.log(`  ${fmtCell(cell)}`);
+    }
+  } else if (mode === "noble") {
+    const modes = String(args.modes ?? Object.keys(NOBLE_MODES).join(",")).split(",");
+    tag = "noble";
+    console.log(
+      `[noble] players=${players.join(",")} modes=${modes.join(",")} games=${games} workers=${workers}`,
+    );
+    for (const n of players) {
+      for (const m of modes) {
+        const jobs = shardJobs({ kind: "noble", players: n, mode: m }, games, seed, workers);
+        const rs = await runJobsParallel(jobs, workers, `noble-p${n}-${m}`);
+        const cell = summarize(n, m, rs);
+        cells.push(cell);
+        console.log(`  ${fmtCell(cell)}  ${NOBLE_MODES[m]!}`);
+      }
     }
   } else {
     const modes = String(args.modes ?? Object.keys(BLOCK_MODES).join(",")).split(",");
